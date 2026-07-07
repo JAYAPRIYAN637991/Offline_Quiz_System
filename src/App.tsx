@@ -1,22 +1,22 @@
 import React, { useEffect, useState, useRef } from "react";
-import { 
-  ShieldCheck, 
-  Wifi, 
-  WifiOff, 
-  Clock, 
-  Lock, 
-  Database, 
-  Play, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw, 
-  PlusCircle, 
-  Key, 
-  User, 
-  Terminal, 
-  Check, 
-  Download, 
-  Eye, 
+import {
+  ShieldCheck,
+  Wifi,
+  WifiOff,
+  Clock,
+  Lock,
+  Database,
+  Play,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  PlusCircle,
+  Key,
+  User,
+  Terminal,
+  Check,
+  Download,
+  Eye,
   EyeOff,
   ExternalLink,
   BrainCircuit,
@@ -139,32 +139,32 @@ function parseAikenFormat(text: string) {
 function parseCsvFormat(text: string) {
   const lines = text.split(/\r?\n/);
   const questions: any[] = [];
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     // Skip header line if present
     if (i === 0 && (line.toLowerCase().includes("question") || line.toLowerCase().includes("difficulty") || line.toLowerCase().includes("options"))) {
       continue;
     }
-    
+
     // Semicolon split first as it's safe for commas inside text
     let parts = line.split(';');
     if (parts.length < 4) {
       parts = line.split(',');
     }
-    
+
     if (parts.length >= 4) {
       const qText = parts[0].trim();
-      
+
       const difficultyStr = parts[parts.length - 1].trim();
       const correctIndexStr = parts[parts.length - 2].trim();
-      
+
       let correctIdx = parseInt(correctIndexStr, 10);
       let difficulty = "Medium";
       let optionsEnd = parts.length - 2;
-      
+
       if (['easy', 'medium', 'hard'].includes(difficultyStr.toLowerCase())) {
         difficulty = difficultyStr.charAt(0).toUpperCase() + difficultyStr.slice(1).toLowerCase();
       } else {
@@ -174,13 +174,13 @@ function parseCsvFormat(text: string) {
           optionsEnd = parts.length - 1;
         }
       }
-      
+
       if (isNaN(correctIdx) || correctIdx < 0) {
         correctIdx = 0;
       }
-      
+
       const options = parts.slice(1, optionsEnd).map(o => o.trim()).filter(o => o.length > 0);
-      
+
       if (qText && options.length >= 2) {
         questions.push({
           text: qText,
@@ -192,6 +192,16 @@ function parseCsvFormat(text: string) {
     }
   }
   return questions;
+}
+
+// Helper to safely parse JSON response and avoid SyntaxError popup
+async function safeParseJson(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    return { error: `Server returned invalid response (Status ${res.status}): ${text.substring(0, 120)}` };
+  }
 }
 
 export default function App() {
@@ -225,13 +235,13 @@ export default function App() {
   // Expanded registration / authentication states
   const [candidatePassword, setCandidatePassword] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
-  
+
   // Reg Candidate states
   const [regCandidateUsername, setRegCandidateUsername] = useState("");
   const [regCandidateEmail, setRegCandidateEmail] = useState("");
   const [regCandidatePassword, setRegCandidatePassword] = useState("");
   const [regCandidateConfirmPassword, setRegCandidateConfirmPassword] = useState("");
-  
+
   // Reg Admin states
   const [regAdminUsername, setRegAdminUsername] = useState("");
   const [regAdminPassword, setRegAdminPassword] = useState("");
@@ -263,7 +273,7 @@ export default function App() {
     try {
       const res = await fetch("/api/auth/admin/status");
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         setHasCustomAdmin(data.hasCustomAdmin);
       }
     } catch (e) {
@@ -281,7 +291,7 @@ export default function App() {
     try {
       const res = await fetch("/api/admin/notifications");
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         setAdminNotificationsList(data);
       }
     } catch (err) {
@@ -295,7 +305,7 @@ export default function App() {
         headers: { "x-user-role": "admin" }
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         setAdminEmailsList(data);
       }
     } catch (err) {
@@ -369,7 +379,7 @@ export default function App() {
         body: JSON.stringify({ attemptIds: selectedRegistryAttemptIds })
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         showCustomAlert(
           "Batch re-analysis success",
           `Successfully batch re-analyzed ${data.updatedAttempts?.length || 0} attempts using Gemini AI.`
@@ -379,7 +389,7 @@ export default function App() {
         fetchNotifications();
         fetchAdminEmails();
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Batch Error", errData.error || "Failed to batch process.");
       }
     } catch (err: any) {
@@ -403,7 +413,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'student') return parsed.name;
-      } catch (e) {}
+      } catch (e) { }
     }
     return "";
   });
@@ -413,7 +423,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'student') return parsed.email || "";
-      } catch (e) {}
+      } catch (e) { }
     }
     return "";
   });
@@ -494,7 +504,7 @@ export default function App() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         const user = data.user;
         localStorage.setItem("guardian_quiz_user", JSON.stringify(user));
         setStudentName(user.name);
@@ -504,7 +514,7 @@ export default function App() {
         setCurrentTab('student');
         showCustomAlert("Signed In", `Successfully signed in as candidate: ${user.name}`);
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Authentication Failed", errData.error || "Invalid candidate credentials.");
       }
     } catch (err) {
@@ -578,7 +588,7 @@ export default function App() {
           }
         );
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Registration Failed", errData.error || "Failed to create account.");
       }
     } catch (err) {
@@ -650,9 +660,9 @@ export default function App() {
     if (validationErrors.length > 0) {
       showCustomAlert(
         "Defined Security Standards Violation",
-        "Your administrator account credentials DO NOT meet the defined security standards:\n\n" + 
-          validationErrors.map((err, idx) => `• ${err}`).join("\n") +
-          "\n\nPlease correct these to proceed with administrator registration."
+        "Your administrator account credentials DO NOT meet the defined security standards:\n\n" +
+        validationErrors.map((err, idx) => `• ${err}`).join("\n") +
+        "\n\nPlease correct these to proceed with administrator registration."
       );
       return;
     }
@@ -684,7 +694,7 @@ export default function App() {
           }
         );
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Account Creation Rejected", errData.error || "Could not register administrator.");
       }
     } catch (err) {
@@ -704,7 +714,7 @@ export default function App() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         localStorage.setItem("guardian_quiz_user", JSON.stringify(data.user));
         setCurrentUser(data.user);
         setCurrentTab('admin');
@@ -712,7 +722,7 @@ export default function App() {
         showCustomAlert("Dashboard Access Unlocked", `Welcome, ${data.user.name}. Secure admin workspace loaded.`);
         return true;
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Access Denied", errData.error || "Incorrect admin credentials.");
         return false;
       }
@@ -749,8 +759,8 @@ export default function App() {
 
   const handleUpdateAdminCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentAdminUsername = currentUser?.name?.includes("(") 
-      ? currentUser.name.substring(currentUser.name.indexOf("(") + 1, currentUser.name.indexOf(")")) 
+    const currentAdminUsername = currentUser?.name?.includes("(")
+      ? currentUser.name.substring(currentUser.name.indexOf("(") + 1, currentUser.name.indexOf(")"))
       : "admin";
 
     const username = newAdminUsername.trim();
@@ -805,9 +815,9 @@ export default function App() {
     if (validationErrors.length > 0) {
       showCustomAlert(
         "Defined Security Standards Violation",
-        "Your new credentials DO NOT meet the defined security standards:\n\n" + 
-          validationErrors.map((err) => `• ${err}`).join("\n") +
-          "\n\nPlease correct these to proceed."
+        "Your new credentials DO NOT meet the defined security standards:\n\n" +
+        validationErrors.map((err) => `• ${err}`).join("\n") +
+        "\n\nPlease correct these to proceed."
       );
       return;
     }
@@ -983,7 +993,7 @@ export default function App() {
 
   const handleRemoveMaintenanceCandidates = async () => {
     if (!maintenanceDate) return;
-    
+
     const count = maintenanceData?.totalCandidates || 0;
     if (count === 0) {
       showCustomAlert("No Candidates Found", `There are no candidate attendance records on ${maintenanceDate} to remove.`);
@@ -1002,7 +1012,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/admin/candidates-by-date/remove`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "x-user-role": "admin"
         },
@@ -1126,7 +1136,7 @@ export default function App() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const fileNameLower = file.name.toLowerCase();
-      
+
       if (fileNameLower.endsWith(".json")) {
         try {
           const parsed = JSON.parse(text);
@@ -1370,7 +1380,7 @@ export default function App() {
     try {
       // 1. Calculate the local cached question hash
       const localHash = await generateIntegrityHash(exam.questions);
-      
+
       // 2. Locate the server-provided hash (via availableExams)
       const serverExam = availableExams.find(e => e.id === exam.id);
       const serverHash = serverExam ? serverExam.integrityHash : exam.integrityHash;
@@ -1587,7 +1597,7 @@ export default function App() {
   const handleDownloadCSV = (sub: ExamAttempt) => {
     const examMeta = availableExams.find(e => e.id === sub.examId);
     const scorePct = sub.score || 0;
-    
+
     // Obtained marks computation
     let obtainedScoreStr = "N/A";
     let totalQuestionsCount = 0;
@@ -1683,7 +1693,7 @@ export default function App() {
     try {
       // Create a secure tamperproof checksum of the questions payload
       const integrityHash = await generateIntegrityHash(examToDownload.questions);
-      
+
       // AES Encrypt the question array internally
       const encryptedPayload = await encryptData(JSON.stringify(examToDownload.questions), decryptionPasskey);
 
@@ -1695,13 +1705,13 @@ export default function App() {
         questions: examToDownload.questions.map(q => ({
           ...q,
           // Correct option is always omitted in student download client state
-          correctOptionIndex: undefined 
+          correctOptionIndex: undefined
         }))
       };
 
       // Store in offline database
       await localDb.saveExam(secureExam);
-      
+
       // Add encryption wrapper log
       const tamperEvent: TamperEvent = {
         id: `crypt-${Math.random().toString(36).substr(2, 9)}`,
@@ -1726,7 +1736,7 @@ export default function App() {
     const integrity = examIntegrity[exam.id];
     if (!integrity || integrity.status !== 'verified') {
       showCustomAlert(
-        "Integrity Verification Required", 
+        "Integrity Verification Required",
         "Cryptographic protection rule: You must run the visual integrity verification step and confirm the local file signature matches the authoritative server hash before unlocking this exam."
       );
       return;
@@ -1869,7 +1879,7 @@ export default function App() {
             await document.documentElement.requestFullscreen();
             setIsFullscreenActive(true);
           }
-        } catch (_) {}
+        } catch (_) { }
 
         // Log the resume activity
         const resumeLog: TamperEvent = {
@@ -1989,7 +1999,7 @@ export default function App() {
     // 3. Find next question from pool that has not been asked yet
     const askedIds = new Set(adaptiveQuestions.map(q => q.id));
     const pool = activeExam.questionPool || [];
-    
+
     let nextQ: Question | undefined;
     for (const diff of targetDifficulties) {
       nextQ = pool.find(q => q.difficulty === diff && !askedIds.has(q.id));
@@ -2009,7 +2019,7 @@ export default function App() {
 
     // 4. Update adaptive questions array
     const updatedAdaptiveQuestions = [...adaptiveQuestions, nextQ];
-    
+
     const updatedAttempt: ExamAttempt = {
       ...activeAttempt,
       answers: {
@@ -2022,7 +2032,7 @@ export default function App() {
 
     // Save updated attempt to local IndexedDB
     await localDb.saveAttempt(updatedAttempt);
-    
+
     // Update state
     setAdaptiveQuestions(updatedAdaptiveQuestions);
     setActiveAttempt(updatedAttempt);
@@ -2204,7 +2214,7 @@ export default function App() {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         }
-      } catch (_) {}
+      } catch (_) { }
 
       setActiveAttempt(null);
       stopScreenCaptureMonitoring();
@@ -2240,7 +2250,7 @@ export default function App() {
     await triggerTamperEvent("fullscreen-exit", "CRITICAL WARNING: Student exited fullscreen mode. Session paused.");
 
     isShowingFullscreenWarningRef.current = true;
-    
+
     showCustomAlert(
       "Fullscreen Mode Required",
       "⚠️ WARNING: This examination is PAUSED because you exited fullscreen mode.\n\nAll countdown timers and question controls have been locked. To continue, you must restore fullscreen mode.\n\nPlease click OK to re-enter fullscreen mode.",
@@ -2265,7 +2275,7 @@ export default function App() {
   // Select option
   const handleSelectOption = async (questionId: string, optionIdx: number) => {
     if (!activeAttempt) return;
-    
+
     // Save live answer record to SQLite answers database table
     await localDb.saveAnswer(activeAttempt.id, questionId, optionIdx);
 
@@ -2304,13 +2314,13 @@ export default function App() {
 
         // Save back to local DB
         await localDb.saveAttempt(completedAttempt);
-        
+
         // Clean up fullscreen
         try {
           if (document.exitFullscreen) {
             await document.exitFullscreen();
           }
-        } catch (_) {}
+        } catch (_) { }
 
         setActiveAttempt(null);
         stopScreenCaptureMonitoring();
@@ -2376,13 +2386,13 @@ export default function App() {
 
       // Save back to local DB immediately
       await localDb.saveAttempt(completedAttempt);
-      
+
       // Clean up fullscreen
       try {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         }
-      } catch (_) {}
+      } catch (_) { }
 
       setActiveAttempt(null);
       stopScreenCaptureMonitoring();
@@ -2443,7 +2453,7 @@ export default function App() {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         }
-      } catch (_) {}
+      } catch (_) { }
 
       setActiveAttempt(null);
       stopScreenCaptureMonitoring();
@@ -2599,7 +2609,7 @@ export default function App() {
     try {
       let orphanedCount = 0;
       let totalInspected = 0;
-      
+
       const recordsResult = await localDb.runVirtualSqlQuery(`SELECT * FROM ${tableName}`);
       if (recordsResult && !recordsResult.error) {
         totalInspected = recordsResult.rows.length;
@@ -2608,8 +2618,8 @@ export default function App() {
       if (tableName === 'answers' || tableName === 'anti_tampering_logs') {
         const attemptsResult = await localDb.runVirtualSqlQuery(`SELECT id FROM attempts`);
         const validAttemptIds = new Set(
-          attemptsResult && !attemptsResult.error 
-            ? attemptsResult.rows.map(row => String(row[0])) 
+          attemptsResult && !attemptsResult.error
+            ? attemptsResult.rows.map(row => String(row[0]))
             : []
         );
 
@@ -2630,8 +2640,8 @@ export default function App() {
       } else if (tableName === 'attempts') {
         const examsResult = await localDb.runVirtualSqlQuery(`SELECT id FROM exams`);
         const validExamIds = new Set(
-          examsResult && !examsResult.error 
-            ? examsResult.rows.map(row => String(row[0])) 
+          examsResult && !examsResult.error
+            ? examsResult.rows.map(row => String(row[0]))
             : []
         );
 
@@ -2909,7 +2919,7 @@ export default function App() {
     try {
       const res = await fetch("/api/question-banks", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "x-user-role": "admin"
         },
@@ -2933,7 +2943,7 @@ export default function App() {
         setBankUploadMethod('json');
         fetchQuestionBanks();
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Upload Failed", errData.error || "Failed to upload Question Bank.");
       }
     } catch (err) {
@@ -2975,7 +2985,7 @@ export default function App() {
     // Since 1 question = 1 mark, we generate exactly autoTotalMarks questions.
     const generatedQuestions: any[] = [];
     const pool = [...selectedBank.questions];
-    
+
     // Fisher-Yates shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -3008,13 +3018,13 @@ export default function App() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeParseJson(res);
         // Clear creation fields
         setNewExamTitle("");
         setNewExamDesc("");
         setNewExamRequireScreenCapture(false);
         setIsAutoGenerateExam(false);
-        
+
         // Refresh server exams so the new exam is loaded
         fetchServerExams();
 
@@ -3022,7 +3032,7 @@ export default function App() {
         setNewlyCreatedExam(data);
         setShowLaunchConfirmation(true);
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Generation Failed", errData.error || "Failed to create auto-generated exam.");
       }
     } catch (err) {
@@ -3106,7 +3116,7 @@ export default function App() {
     try {
       const res = await fetch("/api/exams/adaptive", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "x-user-role": "admin"
         },
@@ -3131,7 +3141,7 @@ export default function App() {
         setAdaptiveQuestionsCount(5);
         fetchServerExams();
       } else {
-        const errData = await res.json();
+        const errData = await safeParseJson(res);
         showCustomAlert("Creation Failed", errData.error || "Failed to create adaptive quiz.");
       }
     } catch (err) {
@@ -3186,11 +3196,11 @@ export default function App() {
 
 
         <div className="w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12">
-          
+
           {/* BRANDING PANE - LEFT SIDE */}
           <div className="md:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 p-8 flex flex-col justify-between border-r border-slate-800">
             <div>
-              <button 
+              <button
                 type="button"
                 onClick={handleShieldClick}
                 className="w-12 h-12 bg-teal-500 hover:bg-teal-400 rounded-xl flex items-center justify-center text-slate-950 font-black text-2xl shadow-lg mb-6 transition-all focus:outline-none"
@@ -3200,7 +3210,7 @@ export default function App() {
               </button>
               <h2 className="text-2xl font-bold text-white tracking-tight leading-tight">GuardianQuiz</h2>
               <p className="text-xs text-teal-400 font-mono mt-1 uppercase tracking-wider">Secure Offline Assessment Terminal</p>
-              
+
               <div className="mt-8 space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="mt-1 p-1 bg-slate-900/80 rounded border border-slate-800 shrink-0">
@@ -3253,29 +3263,27 @@ export default function App() {
             </div>
           </div>
 
-             {/* CREDENTIALS/LOGIN TAB PANE - RIGHT SIDE */}
+          {/* CREDENTIALS/LOGIN TAB PANE - RIGHT SIDE */}
           <div className="md:col-span-7 p-8 flex flex-col justify-center bg-slate-900/40">
             {showAdminTabOption && (
               <div className="mb-6 flex justify-center bg-slate-950 p-1 rounded-lg border border-slate-800">
                 <button
                   type="button"
                   onClick={() => setLoginTab('student-login')}
-                  className={`flex-1 py-2 text-center rounded-md text-xs font-bold transition-all ${
-                    loginTab === 'student-login' || loginTab === 'student-register'
+                  className={`flex-1 py-2 text-center rounded-md text-xs font-bold transition-all ${loginTab === 'student-login' || loginTab === 'student-register'
                       ? 'bg-teal-500 text-slate-950 shadow-md'
                       : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                  }`}
+                    }`}
                 >
                   🎓 Candidate Portal
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginTab('admin-login')}
-                  className={`flex-1 py-2 text-center rounded-md text-xs font-bold transition-all ${
-                    loginTab === 'admin-login' || loginTab === 'admin-register'
+                  className={`flex-1 py-2 text-center rounded-md text-xs font-bold transition-all ${loginTab === 'admin-login' || loginTab === 'admin-register'
                       ? 'bg-indigo-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                  }`}
+                    }`}
                 >
                   💼 Proctor Admin
                 </button>
@@ -3316,7 +3324,7 @@ export default function App() {
                     />
                   </div>
 
-                   <div>
+                  <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Password</label>
                     <div className="relative">
                       <input
@@ -3429,7 +3437,7 @@ export default function App() {
                     />
                   </div>
 
-                   <div>
+                  <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Password (Min 6 chars)</label>
                     <div className="relative">
                       <input
@@ -3755,7 +3763,7 @@ export default function App() {
 
   return (
     <div className={`theme-${theme} flex h-screen w-full bg-[#f8fafc] text-slate-900 overflow-hidden font-sans`} id="offline-quiz-system-root">
-      
+
       {/* Sidebar navigation - High Density Theme styled */}
       <aside className="w-64 bg-[#0f172a] text-slate-300 flex flex-col shrink-0 border-r border-[#1e293b]" id="app-sidebar">
         {/* Sidebar Header branding */}
@@ -3773,7 +3781,7 @@ export default function App() {
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">Access Portals</div>
             <div className="space-y-1">
               {currentUser?.role === "student" && (
-                <button 
+                <button
                   onClick={() => setCurrentTab('student')}
                   className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-md transition-all text-left bg-teal-500 text-slate-950 shadow"
                 >
@@ -3787,37 +3795,34 @@ export default function App() {
 
               {currentUser?.role === "admin" && (
                 <>
-                  <button 
+                  <button
                     onClick={() => { setCurrentTab('admin'); if (activeAttempt) handleInterruptExam(); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${
-                      currentTab === 'admin' 
-                        ? 'bg-slate-800 text-white shadow border border-slate-700/50' 
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${currentTab === 'admin'
+                        ? 'bg-slate-800 text-white shadow border border-slate-700/50'
                         : 'hover:bg-slate-800/40 hover:text-white text-slate-300'
-                    }`}
+                      }`}
                   >
                     <BrainCircuit className="w-4 h-4 text-teal-400" />
                     Proctor Dashboard
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => { setCurrentTab('student'); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${
-                      currentTab === 'student' 
-                        ? 'bg-slate-800 text-white shadow border border-slate-700/50' 
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${currentTab === 'student'
+                        ? 'bg-slate-800 text-white shadow border border-slate-700/50'
                         : 'hover:bg-slate-800/40 hover:text-white text-slate-300'
-                    }`}
+                      }`}
                   >
                     <User className="w-4 h-4 text-amber-400" />
                     Student Simulation
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => { setCurrentTab('db-console'); if (activeAttempt) handleInterruptExam(); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${
-                      currentTab === 'db-console' 
-                        ? 'bg-slate-800 text-white shadow border border-slate-700/50' 
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-md transition-all text-left ${currentTab === 'db-console'
+                        ? 'bg-slate-800 text-white shadow border border-slate-700/50'
                         : 'hover:bg-slate-800/40 hover:text-white text-slate-300'
-                    }`}
+                      }`}
                   >
                     <Database className="w-4 h-4 text-indigo-400" />
                     SQLite SQL Console
@@ -3906,7 +3911,7 @@ export default function App() {
           <div className="flex items-center gap-3">
 
 
-            <button 
+            <button
               onClick={() => { triggerAutoSync(); fetchServerSubmissions(); }}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-300 transition-all flex items-center gap-1.5"
             >
@@ -3918,11 +3923,11 @@ export default function App() {
 
         {/* MAIN DYNAMIC TAB SCREENS */}
         <div className="p-6 flex-1 overflow-y-auto bg-[#f8fafc]" id="tab-content-area">
-          
+
           {/* 1. STUDENT PORTAL TAB */}
           {currentTab === 'student' && (
             <div className="space-y-6" id="student-portal-view">
-              
+
               {/* Active Exam Lock Session Header (If exam in progress) */}
               {activeAttempt ? (
                 <div className="bg-slate-900 text-white rounded-xl shadow-xl border border-slate-800 p-5 relative overflow-hidden" id="active-test-container">
@@ -3944,7 +3949,7 @@ export default function App() {
                           All countdown timers, question selections, and answer logging controls have been frozen. You cannot view or submit answers until full-screen mode is restored.
                         </p>
                       </div>
-                      
+
                       <div className="flex flex-col gap-2 mt-6 w-full max-w-xs">
                         <button
                           onClick={async () => {
@@ -3998,7 +4003,7 @@ export default function App() {
                       <LockKeyhole className="w-3.5 h-3.5 text-rose-500" />
                       SECURE LOCK ON
                     </span>
-                    <button 
+                    <button
                       onClick={handleInterruptExam}
                       className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 text-xs rounded transition-all"
                     >
@@ -4029,219 +4034,215 @@ export default function App() {
 
                   {/* Grid showing Active Exam State & Proctor logs live */}
                   <div className="grid grid-cols-12 gap-6 mt-6">
-                    
+
                     {/* LEFT PANEL: ACTIVE EXAM QUESTION FORM */}
                     {(() => {
                       const isBelowThreshold = enableTimeWarning && timeRemaining > 0 && timeRemaining < (timeWarningThreshold * 60);
                       return (
-                        <div className={`col-span-12 lg:col-span-8 bg-slate-950 p-5 rounded-lg border transition-all duration-500 ${
-                          isBelowThreshold 
-                            ? "border-amber-500/85 ring-2 ring-amber-500/30 shadow-[0_0_22px_rgba(245,158,11,0.25)] animate-pulse" 
+                        <div className={`col-span-12 lg:col-span-8 bg-slate-950 p-5 rounded-lg border transition-all duration-500 ${isBelowThreshold
+                            ? "border-amber-500/85 ring-2 ring-amber-500/30 shadow-[0_0_22px_rgba(245,158,11,0.25)] animate-pulse"
                             : "border-slate-800"
-                        }`}>
+                          }`}>
                           {(() => {
                             const activeExam = downloadedExams.find(e => e.id === activeAttempt.examId);
                             if (!activeExam) return <p className="text-xs text-slate-400">Exam loaded is missing or corrupt.</p>;
-                        
-                        const questionsToRender = activeExam.isAdaptive ? adaptiveQuestions : activeExam.questions;
-                        const q = questionsToRender[currentQuestionIndex];
-                        if (!q) return <p className="text-xs text-slate-400 font-mono text-amber-500 animate-pulse">Initializing adaptive questions pool...</p>;
 
-                        const answeredCount = activeExam.isAdaptive
-                          ? Object.keys(selectedAnswers).length
-                          : activeExam.questions.filter(quest => selectedAnswers[quest.id] !== undefined).length;
-                        const totalCount = activeExam.isAdaptive
-                          ? (activeExam.totalQuestionsCount || 5)
-                          : activeExam.questions.length;
-                        const percentAnswered = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0;
+                            const questionsToRender = activeExam.isAdaptive ? adaptiveQuestions : activeExam.questions;
+                            const q = questionsToRender[currentQuestionIndex];
+                            if (!q) return <p className="text-xs text-slate-400 font-mono text-amber-500 animate-pulse">Initializing adaptive questions pool...</p>;
 
-                        return (
-                          <div className="space-y-5">
-                            {/* Question Header */}
-                            <div className="flex justify-between items-center border-b border-slate-800 pb-3 flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400 font-mono">
-                                  QUESTION {currentQuestionIndex + 1} OF {totalCount}
-                                </span>
-                                {activeExam.isAdaptive && q.difficulty && (
-                                  <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded border uppercase shrink-0 ${
-                                    q.difficulty === 'Easy'
-                                      ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/35'
-                                      : q.difficulty === 'Medium'
-                                      ? 'bg-amber-500/25 text-amber-400 border-amber-500/35'
-                                      : 'bg-rose-500/25 text-rose-400 border-rose-500/35'
-                                  }`}>
-                                    ⚡ {q.difficulty} Level
-                                  </span>
+                            const answeredCount = activeExam.isAdaptive
+                              ? Object.keys(selectedAnswers).length
+                              : activeExam.questions.filter(quest => selectedAnswers[quest.id] !== undefined).length;
+                            const totalCount = activeExam.isAdaptive
+                              ? (activeExam.totalQuestionsCount || 5)
+                              : activeExam.questions.length;
+                            const percentAnswered = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0;
+
+                            return (
+                              <div className="space-y-5">
+                                {/* Question Header */}
+                                <div className="flex justify-between items-center border-b border-slate-800 pb-3 flex-wrap gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-400 font-mono">
+                                      QUESTION {currentQuestionIndex + 1} OF {totalCount}
+                                    </span>
+                                    {activeExam.isAdaptive && q.difficulty && (
+                                      <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded border uppercase shrink-0 ${q.difficulty === 'Easy'
+                                          ? 'bg-emerald-500/25 text-emerald-400 border-emerald-500/35'
+                                          : q.difficulty === 'Medium'
+                                            ? 'bg-amber-500/25 text-amber-400 border-amber-500/35'
+                                            : 'bg-rose-500/25 text-rose-400 border-rose-500/35'
+                                        }`}>
+                                        ⚡ {q.difficulty} Level
+                                      </span>
+                                    )}
+                                    {activeExam.isAdaptive && (
+                                      <span className="text-[9px] font-semibold font-mono text-slate-500 hidden sm:inline">
+                                        (Adaptive Mode)
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    {isFullscreenActive ? (
+                                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                        ● FULLSCREEN MODE ACTIVE
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1 animate-pulse">
+                                        ⚠️ FULLSCREEN DISABLED
+                                      </span>
+                                    )}
+                                    <div className={`flex items-center gap-1.5 font-bold font-mono text-sm transition-all duration-300 ${timeRemaining < 60
+                                        ? "text-rose-400 bg-rose-500/15 px-2 py-1 rounded border border-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.3)]"
+                                        : "text-teal-400"
+                                      }`}>
+                                      <Clock className={`w-4 h-4 ${timeRemaining < 60 ? "text-rose-400" : "text-teal-400"}`} />
+                                      <span>{Math.floor(timeRemaining / 60)}m {timeRemaining % 60}s</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Answer Progress Bar */}
+                                <div className="space-y-2 border-b border-slate-800/60 pb-4" id="exam-questions-progress-bar">
+                                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
+                                      Assessment Progress
+                                    </span>
+                                    <span className="text-teal-400 font-bold">
+                                      {answeredCount} of {totalCount} Answered ({Math.round(percentAnswered)}%)
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800/80 p-[1px]">
+                                    <div
+                                      className="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(20,184,166,0.3)]"
+                                      style={{ width: `${percentAnswered}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                {isBelowThreshold && (
+                                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs rounded-lg font-mono animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                                    <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-500" />
+                                    <div className="flex-1">
+                                      <span className="font-bold uppercase tracking-wider text-[10px] block text-amber-300">⏱️ CRITICAL ASSESSMENT TIMER WARNING</span>
+                                      <span>The remaining time is below your configured {timeWarningThreshold}-minute alert threshold. Please finish and submit your answers soon.</span>
+                                    </div>
+                                  </div>
                                 )}
-                                {activeExam.isAdaptive && (
-                                  <span className="text-[9px] font-semibold font-mono text-slate-500 hidden sm:inline">
-                                    (Adaptive Mode)
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                {isFullscreenActive ? (
-                                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                    ● FULLSCREEN MODE ACTIVE
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1 animate-pulse">
-                                    ⚠️ FULLSCREEN DISABLED
-                                  </span>
-                                )}
-                                <div className={`flex items-center gap-1.5 font-bold font-mono text-sm transition-all duration-300 ${
-                                  timeRemaining < 60 
-                                    ? "text-rose-400 bg-rose-500/15 px-2 py-1 rounded border border-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.3)]" 
-                                    : "text-teal-400"
-                                }`}>
-                                  <Clock className={`w-4 h-4 ${timeRemaining < 60 ? "text-rose-400" : "text-teal-400"}`} />
-                                  <span>{Math.floor(timeRemaining / 60)}m {timeRemaining % 60}s</span>
+
+                                {/* Question Text */}
+                                <div className="py-2">
+                                  <h3 className="text-md font-medium text-slate-100 leading-relaxed">
+                                    {q.text}
+                                  </h3>
+                                </div>
+
+                                {/* Options List */}
+                                <div className="space-y-2.5">
+                                  {q.options.map((opt, oIdx) => {
+                                    const isSelected = selectedAnswers[q.id] === oIdx;
+                                    return (
+                                      <button
+                                        key={oIdx}
+                                        onClick={() => handleSelectOption(q.id, oIdx)}
+                                        className={`w-full text-left p-3 rounded-lg text-xs font-medium transition-all flex items-center justify-between border ${isSelected
+                                            ? 'bg-teal-500/10 text-teal-300 border-teal-500'
+                                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                                          }`}
+                                      >
+                                        <span>{opt}</span>
+                                        {isSelected && <Check className="w-4 h-4 text-teal-400" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Navigation inside Exam */}
+                                <div className="flex justify-between items-center pt-4 border-t border-slate-800">
+                                  <button
+                                    disabled={currentQuestionIndex === 0 || activeExam.isAdaptive}
+                                    onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-850 disabled:opacity-30 text-white rounded text-xs border border-slate-800 transition-all"
+                                  >
+                                    Previous
+                                  </button>
+
+                                  {activeExam.isAdaptive ? (
+                                    currentQuestionIndex < totalCount - 1 ? (
+                                      <button
+                                        onClick={handleAdaptiveNextQuestion}
+                                        className="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded text-xs transition-all"
+                                      >
+                                        Submit & Next Question →
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleFinishExam(false)}
+                                        className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs shadow-md transition-all flex items-center gap-1.5"
+                                      >
+                                        <ShieldCheck className="w-4 h-4" />
+                                        SUBMIT SECURE EXAM
+                                      </button>
+                                    )
+                                  ) : (
+                                    currentQuestionIndex < activeExam.questions.length - 1 ? (
+                                      <button
+                                        onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                                        className="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded text-xs transition-all"
+                                      >
+                                        Next Question
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleFinishExam(false)}
+                                        className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs shadow-md transition-all flex items-center gap-1.5"
+                                      >
+                                        <ShieldCheck className="w-4 h-4" />
+                                        SUBMIT SECURE EXAM
+                                      </button>
+                                    )
+                                  )}
+                                </div>
+
+                                {/* Optional Warning Threshold Control */}
+                                <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500 font-mono">
+                                  <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-400 select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={enableTimeWarning}
+                                        onChange={(e) => setEnableTimeWarning(e.target.checked)}
+                                        className="rounded border-slate-800 bg-slate-900 text-teal-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer"
+                                      />
+                                      <span>Enable Remaining Time Warning Alert</span>
+                                    </label>
+                                  </div>
+
+                                  {enableTimeWarning && (
+                                    <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded border border-slate-800/60">
+                                      <span>Alert Threshold:</span>
+                                      <select
+                                        value={timeWarningThreshold}
+                                        onChange={(e) => setTimeWarningThreshold(Number(e.target.value))}
+                                        className="bg-slate-950 text-teal-400 border-none outline-none py-0.5 px-1 rounded text-[11px] font-bold cursor-pointer font-mono"
+                                      >
+                                        <option value={1}>1 Minute</option>
+                                        <option value={3}>3 Minutes</option>
+                                        <option value={5}>5 Minutes</option>
+                                        <option value={10}>10 Minutes</option>
+                                        <option value={15}>15 Minutes</option>
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Answer Progress Bar */}
-                            <div className="space-y-2 border-b border-slate-800/60 pb-4" id="exam-questions-progress-bar">
-                              <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-                                <span className="flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
-                                  Assessment Progress
-                                </span>
-                                <span className="text-teal-400 font-bold">
-                                  {answeredCount} of {totalCount} Answered ({Math.round(percentAnswered)}%)
-                                </span>
-                              </div>
-                              <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800/80 p-[1px]">
-                                <div 
-                                  className="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(20,184,166,0.3)]"
-                                  style={{ width: `${percentAnswered}%` }}
-                                ></div>
-                              </div>
-                            </div>
-
-                            {isBelowThreshold && (
-                              <div className="flex items-center gap-3 px-3.5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs rounded-lg font-mono animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-500" />
-                                <div className="flex-1">
-                                  <span className="font-bold uppercase tracking-wider text-[10px] block text-amber-300">⏱️ CRITICAL ASSESSMENT TIMER WARNING</span>
-                                  <span>The remaining time is below your configured {timeWarningThreshold}-minute alert threshold. Please finish and submit your answers soon.</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Question Text */}
-                            <div className="py-2">
-                              <h3 className="text-md font-medium text-slate-100 leading-relaxed">
-                                {q.text}
-                              </h3>
-                            </div>
-
-                            {/* Options List */}
-                            <div className="space-y-2.5">
-                              {q.options.map((opt, oIdx) => {
-                                const isSelected = selectedAnswers[q.id] === oIdx;
-                                return (
-                                  <button
-                                    key={oIdx}
-                                    onClick={() => handleSelectOption(q.id, oIdx)}
-                                    className={`w-full text-left p-3 rounded-lg text-xs font-medium transition-all flex items-center justify-between border ${
-                                      isSelected 
-                                        ? 'bg-teal-500/10 text-teal-300 border-teal-500' 
-                                        : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
-                                    }`}
-                                  >
-                                    <span>{opt}</span>
-                                    {isSelected && <Check className="w-4 h-4 text-teal-400" />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Navigation inside Exam */}
-                            <div className="flex justify-between items-center pt-4 border-t border-slate-800">
-                              <button
-                                disabled={currentQuestionIndex === 0 || activeExam.isAdaptive}
-                                onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
-                                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-850 disabled:opacity-30 text-white rounded text-xs border border-slate-800 transition-all"
-                              >
-                                Previous
-                              </button>
-
-                              {activeExam.isAdaptive ? (
-                                currentQuestionIndex < totalCount - 1 ? (
-                                  <button
-                                    onClick={handleAdaptiveNextQuestion}
-                                    className="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded text-xs transition-all"
-                                  >
-                                    Submit & Next Question →
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleFinishExam(false)}
-                                    className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs shadow-md transition-all flex items-center gap-1.5"
-                                  >
-                                    <ShieldCheck className="w-4 h-4" />
-                                    SUBMIT SECURE EXAM
-                                  </button>
-                                )
-                              ) : (
-                                currentQuestionIndex < activeExam.questions.length - 1 ? (
-                                  <button
-                                    onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-                                    className="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded text-xs transition-all"
-                                  >
-                                    Next Question
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleFinishExam(false)}
-                                    className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs shadow-md transition-all flex items-center gap-1.5"
-                                  >
-                                    <ShieldCheck className="w-4 h-4" />
-                                    SUBMIT SECURE EXAM
-                                  </button>
-                                )
-                              )}
-                            </div>
-
-                            {/* Optional Warning Threshold Control */}
-                            <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500 font-mono">
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-400 select-none">
-                                  <input
-                                    type="checkbox"
-                                    checked={enableTimeWarning}
-                                    onChange={(e) => setEnableTimeWarning(e.target.checked)}
-                                    className="rounded border-slate-800 bg-slate-900 text-teal-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer"
-                                  />
-                                  <span>Enable Remaining Time Warning Alert</span>
-                                </label>
-                              </div>
-                              
-                              {enableTimeWarning && (
-                                <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded border border-slate-800/60">
-                                  <span>Alert Threshold:</span>
-                                  <select
-                                    value={timeWarningThreshold}
-                                    onChange={(e) => setTimeWarningThreshold(Number(e.target.value))}
-                                    className="bg-slate-950 text-teal-400 border-none outline-none py-0.5 px-1 rounded text-[11px] font-bold cursor-pointer font-mono"
-                                  >
-                                    <option value={1}>1 Minute</option>
-                                    <option value={3}>3 Minutes</option>
-                                    <option value={5}>5 Minutes</option>
-                                    <option value={10}>10 Minutes</option>
-                                    <option value={15}>15 Minutes</option>
-                                  </select>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()}
+                            );
+                          })()}
+                        </div>
+                      );
+                    })()}
 
                     {/* RIGHT PANEL: LIVE PROCTOR WARNINGS & ANTI-TAMPER STATS */}
                     <div className="col-span-12 lg:col-span-4 bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col justify-between">
@@ -4281,7 +4282,7 @@ export default function App() {
               ) : (
                 /* Standard Portal Download list and Interrupted attempt resume lists */
                 <div className="grid grid-cols-12 gap-6">
-                  
+
                   {/* Welcome banner with credentials form */}
                   <div className="col-span-12 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                     <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -4292,11 +4293,10 @@ export default function App() {
                     </p>
 
                     {/* Connection Status Banner for Offline Exam Requirement */}
-                    <div className={`mt-3.5 p-3 rounded-lg border text-xs font-medium flex items-center gap-2.5 ${
-                      isOnline 
-                        ? 'bg-rose-50 border-rose-200 text-rose-800' 
+                    <div className={`mt-3.5 p-3 rounded-lg border text-xs font-medium flex items-center gap-2.5 ${isOnline
+                        ? 'bg-rose-50 border-rose-200 text-rose-800'
                         : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    }`}>
+                      }`}>
                       <div className="flex h-2 w-2 relative">
                         {isOnline ? (
                           <>
@@ -4337,7 +4337,7 @@ export default function App() {
                             <div className="text-[11px] text-slate-500 font-mono mt-0.5">{studentEmail || "no-email@provided.com"}</div>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-4 text-xs">
                           <div className="text-right">
                             <span className="block text-[9px] font-bold text-slate-400 uppercase font-mono">SECURE VAULT KEY</span>
@@ -4421,11 +4421,10 @@ export default function App() {
                           const isAlreadyDownloaded = downloadedExams.some(e => e.id === exam.id);
                           const isExamCompleted = completedExamIds.includes(exam.id);
                           return (
-                            <div key={exam.id} className={`p-3 border rounded-lg transition-all ${
-                              isExamCompleted 
-                                ? "bg-slate-100/60 border-slate-200 opacity-75" 
+                            <div key={exam.id} className={`p-3 border rounded-lg transition-all ${isExamCompleted
+                                ? "bg-slate-100/60 border-slate-200 opacity-75"
                                 : "border-slate-100 bg-slate-50 hover:border-slate-300"
-                            }`}>
+                              }`}>
                               <div className="flex justify-between items-start">
                                 <div>
                                   <h4 className="text-xs font-bold text-slate-900">{exam.title}</h4>
@@ -4485,11 +4484,10 @@ export default function App() {
                         {downloadedExams.map((exam) => {
                           const isExamCompleted = completedExamIds.includes(exam.id);
                           return (
-                            <div key={exam.id} className={`p-3 border rounded-lg transition-all ${
-                              isExamCompleted 
-                                ? "border-slate-200 bg-slate-50 hover:shadow-none opacity-75" 
+                            <div key={exam.id} className={`p-3 border rounded-lg transition-all ${isExamCompleted
+                                ? "border-slate-200 bg-slate-50 hover:shadow-none opacity-75"
                                 : "border-slate-200 bg-white hover:shadow-sm"
-                            }`}>
+                              }`}>
                               <div className="flex justify-between items-start">
                                 <div>
                                   <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -4560,7 +4558,7 @@ export default function App() {
                                         </div>
                                         <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded font-mono font-bold uppercase tracking-wider">SECURE MATCH</span>
                                       </div>
-                                      
+
                                       <div className="p-1.5 bg-white/90 border border-emerald-100 rounded text-[9px] font-mono text-slate-600 space-y-0.5">
                                         <div className="flex justify-between">
                                           <span className="text-slate-400">Local SHA:</span>
@@ -4587,7 +4585,7 @@ export default function App() {
                                         </div>
                                         <span className="text-[9px] bg-rose-200 text-rose-800 px-1 rounded font-mono font-bold uppercase tracking-wider">TAMPERED</span>
                                       </div>
-                                      
+
                                       <div className="p-1.5 bg-white border border-rose-100 rounded text-[9px] font-mono text-slate-600 space-y-0.5">
                                         <div className="flex justify-between text-rose-700 font-bold">
                                           <span>Local SHA:</span>
@@ -4616,16 +4614,15 @@ export default function App() {
                                 ) : (() => {
                                   const integrity = examIntegrity[exam.id];
                                   const isVerified = integrity?.status === 'verified';
-                                  
+
                                   return (
                                     <button
                                       disabled={!isVerified}
                                       onClick={() => handleStartExam(exam)}
-                                      className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1 shadow-sm transition-all ${
-                                        isVerified 
-                                          ? "bg-teal-500 hover:bg-teal-400 text-slate-950 cursor-pointer" 
+                                      className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1 shadow-sm transition-all ${isVerified
+                                          ? "bg-teal-500 hover:bg-teal-400 text-slate-950 cursor-pointer"
                                           : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                                      }`}
+                                        }`}
                                     >
                                       {isVerified ? (
                                         <>
@@ -4657,7 +4654,7 @@ export default function App() {
           {/* 2. PROCTOR ADMIN DASHBOARD TAB */}
           {currentTab === 'admin' && currentUser?.role === 'admin' && (
             <div className="space-y-6" id="admin-dashboard-view">
-              
+
               {/* Security & Registration Notifications Center with Automated Email Dispatch Tab */}
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md text-slate-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-4">
@@ -4668,7 +4665,7 @@ export default function App() {
                       <p className="text-[10px] text-slate-500 font-sans font-medium">Real-time candidate telemetry feeds & automated academic integrity alerts</p>
                     </div>
                   </div>
-                  
+
                   {/* Internal Panel Sub-Tabs */}
                   <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-1 text-[11px] font-mono">
                     <button
@@ -4677,11 +4674,10 @@ export default function App() {
                         setActiveEmailTab('notifications');
                         setSelectedEmailDetail(null);
                       }}
-                      className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        activeEmailTab === 'notifications'
+                      className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeEmailTab === 'notifications'
                           ? "bg-indigo-600 text-white shadow"
                           : "text-slate-400 hover:text-slate-200"
-                      }`}
+                        }`}
                     >
                       <Bell className="w-3.5 h-3.5" />
                       Live Feed ({adminNotificationsList.length})
@@ -4692,11 +4688,10 @@ export default function App() {
                         setActiveEmailTab('emails');
                         setSelectedEmailDetail(null);
                       }}
-                      className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        activeEmailTab === 'emails'
+                      className={`px-3 py-1 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeEmailTab === 'emails'
                           ? "bg-indigo-600 text-white shadow"
                           : "text-slate-400 hover:text-slate-200"
-                      }`}
+                        }`}
                     >
                       <Mail className="w-3.5 h-3.5" />
                       Email Alerts ({adminEmailsList.length})
@@ -4727,11 +4722,10 @@ export default function App() {
                         {adminNotificationsList.map((notif) => (
                           <div
                             key={notif.id}
-                            className={`p-2.5 rounded-lg border text-xs flex items-start justify-between gap-3 ${
-                              notif.read
+                            className={`p-2.5 rounded-lg border text-xs flex items-start justify-between gap-3 ${notif.read
                                 ? "bg-slate-950/40 border-slate-900/60 text-slate-400"
                                 : "bg-indigo-950/40 border-indigo-900/60 text-slate-200 font-medium"
-                            }`}
+                              }`}
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -4775,11 +4769,10 @@ export default function App() {
                             key={email.id}
                             type="button"
                             onClick={() => setSelectedEmailDetail(email)}
-                            className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all cursor-pointer block ${
-                              selectedEmailDetail?.id === email.id
+                            className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all cursor-pointer block ${selectedEmailDetail?.id === email.id
                                 ? "bg-indigo-950/60 border-indigo-500 text-slate-100"
                                 : "bg-slate-950/40 border-slate-800/80 text-slate-300 hover:bg-slate-950/70"
-                            }`}
+                              }`}
                           >
                             <div className="flex justify-between items-start gap-2">
                               <span className="font-bold text-red-400 text-[10px] font-mono uppercase tracking-wider">
@@ -4816,7 +4809,7 @@ export default function App() {
                                 <span className="text-slate-200 font-sans font-bold text-[11px]">{selectedEmailDetail.subject}</span>
                               </div>
                             </div>
-                            
+
                             {/* Scrollable Email Body */}
                             <div className="max-h-40 overflow-y-auto bg-slate-900/60 p-2.5 rounded-lg border border-slate-900">
                               <pre className="text-[10px] font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">
@@ -4883,7 +4876,7 @@ export default function App() {
                           const isUnlocked = exam.isUnlocked || false;
                           const isStarted = exam.isStarted || false;
                           const assignedEmail = exam.assignedCandidateEmail || "";
-                          
+
                           // Track user input for assignment dropdown & passkey input per exam
                           const activeAssignEmail = assignEmails[exam.id] !== undefined ? assignEmails[exam.id] : assignedEmail;
                           const activePasskey = examPasskeys[exam.id] || "";
@@ -5004,11 +4997,10 @@ export default function App() {
                                     <button
                                       onClick={() => handleAdminStartExamAll(exam.id)}
                                       disabled={registeredStudents.length === 0}
-                                      className={`px-2 py-1 rounded text-[9px] font-bold font-mono transition-all w-full select-none cursor-pointer flex items-center justify-center gap-1 ${
-                                        registeredStudents.length > 0
+                                      className={`px-2 py-1 rounded text-[9px] font-bold font-mono transition-all w-full select-none cursor-pointer flex items-center justify-center gap-1 ${registeredStudents.length > 0
                                           ? "bg-emerald-600/25 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-600/40"
                                           : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800/60"
-                                      }`}
+                                        }`}
                                       title={
                                         registeredStudents.length === 0
                                           ? "No candidates registered yet"
@@ -5023,17 +5015,16 @@ export default function App() {
                                     <button
                                       onClick={() => handleAdminStartExam(exam.id)}
                                       disabled={!isUnlocked || !assignedEmail}
-                                      className={`px-3 py-1.5 rounded text-xs font-bold font-sans transition-all w-full select-none cursor-pointer ${
-                                        isUnlocked && assignedEmail
+                                      className={`px-3 py-1.5 rounded text-xs font-bold font-sans transition-all w-full select-none cursor-pointer ${isUnlocked && assignedEmail
                                           ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-95"
                                           : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800/60"
-                                      }`}
+                                        }`}
                                       title={
                                         !assignedEmail
                                           ? "Please assign a candidate first"
                                           : !isUnlocked
-                                          ? "Please unlock the exam with the passkey first"
-                                          : "Publish this exam to the student portal"
+                                            ? "Please unlock the exam with the passkey first"
+                                            : "Publish this exam to the student portal"
                                       }
                                     >
                                       Start Exam
@@ -5096,8 +5087,8 @@ export default function App() {
                       <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Current User</label>
                         <div className="w-full text-xs p-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 font-mono select-none">
-                          {currentUser?.name?.includes("(") 
-                            ? currentUser.name.substring(currentUser.name.indexOf("(") + 1, currentUser.name.indexOf(")")) 
+                          {currentUser?.name?.includes("(")
+                            ? currentUser.name.substring(currentUser.name.indexOf("(") + 1, currentUser.name.indexOf(")"))
                             : "admin"}
                         </div>
                       </div>
@@ -5301,39 +5292,36 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setBankUploadMethod('json')}
-                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${
-                              bankUploadMethod === 'json'
+                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${bankUploadMethod === 'json'
                                 ? "bg-indigo-600/30 text-indigo-400 border border-indigo-800/60"
                                 : "text-slate-400 hover:text-slate-200 border border-transparent"
-                            }`}
+                              }`}
                           >
                             📋 JSON Schema
                           </button>
                           <button
                             type="button"
                             onClick={() => setBankUploadMethod('aiken')}
-                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${
-                              bankUploadMethod === 'aiken'
+                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${bankUploadMethod === 'aiken'
                                 ? "bg-indigo-600/30 text-indigo-400 border border-indigo-800/60"
                                 : "text-slate-400 hover:text-slate-200 border border-transparent"
-                            }`}
+                              }`}
                           >
                             ✍️ Aiken Plain-Text
                           </button>
                           <button
                             type="button"
                             onClick={() => setBankUploadMethod('csv')}
-                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${
-                              bankUploadMethod === 'csv'
+                            className={`px-2.5 py-1 text-[10px] font-bold font-mono transition-all rounded cursor-pointer ${bankUploadMethod === 'csv'
                                 ? "bg-indigo-600/30 text-indigo-400 border border-indigo-800/60"
                                 : "text-slate-400 hover:text-slate-200 border border-transparent"
-                            }`}
+                              }`}
                           >
                             📊 CSV Spreadsheet
                           </button>
                         </div>
                       </div>
-                      
+
                       {/* Drag & Drop Zone */}
                       <div
                         onDragOver={(e) => {
@@ -5349,11 +5337,10 @@ export default function App() {
                           }
                         }}
                         onClick={() => document.getElementById('bank-file-input')?.click()}
-                        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2 ${
-                          isDraggingBank
+                        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2 ${isDraggingBank
                             ? "border-indigo-500 bg-indigo-950/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                             : "border-slate-800 hover:border-slate-700 hover:bg-slate-950/30"
-                        }`}
+                          }`}
                         id="question-bank-drop-zone"
                       >
                         <input
@@ -5405,8 +5392,8 @@ export default function App() {
                                   }
                                 ];
                                 setNewBankJson(JSON.stringify(template, null, 2));
-                                if(!newBankName) setNewBankName("Sample Cyber Security Pool");
-                                if(!newBankSubject) setNewBankSubject("Computer Science");
+                                if (!newBankName) setNewBankName("Sample Cyber Security Pool");
+                                if (!newBankSubject) setNewBankSubject("Computer Science");
                               }}
                               className="text-[9px] font-bold text-teal-400 hover:text-teal-300 font-mono transition-colors cursor-pointer"
                             >
@@ -5435,8 +5422,8 @@ export default function App() {
                               onClick={() => {
                                 const template = `Which of the following is an example of an asymmetric encryption algorithm?\nA) AES\nB) DES\nC) RSA\nD) Blowfish\nANSWER: C\nDIFFICULTY: Medium\n\nWhat does SSL stand for in web security?\nA) System Security Log\nB) Secure Sockets Layer\nC) Standard Socket Line\nD) Super Shield Lock\nANSWER: B\nDIFFICULTY: Easy\n\nIn cryptography, what is the key length of AES-256?\nA) 128 bits\nB) 192 bits\nC) 256 bits\nD) 512 bits\nANSWER: C\nDIFFICULTY: Hard`;
                                 setNewBankAikenText(template);
-                                if(!newBankName) setNewBankName("Aiken Crypto Pool");
-                                if(!newBankSubject) setNewBankSubject("Computer Science");
+                                if (!newBankName) setNewBankName("Aiken Crypto Pool");
+                                if (!newBankSubject) setNewBankSubject("Computer Science");
                               }}
                               className="text-[9px] font-bold text-teal-400 hover:text-teal-300 font-mono transition-colors cursor-pointer"
                             >
@@ -5465,8 +5452,8 @@ export default function App() {
                               onClick={() => {
                                 const template = `Question;Option A;Option B;Option C;Option D;Correct Index;Difficulty\nWhich of the following is an example of an asymmetric encryption algorithm?;AES;DES;RSA;Blowfish;2;Medium\nWhat does SSL stand for in web security?;System Security Log;Secure Sockets Layer;Standard Socket Line;Super Shield Lock;1;Easy\nIn cryptography, what is the key length of AES-256?;128 bits;192 bits;256 bits;512 bits;2;Hard`;
                                 setNewBankCsvText(template);
-                                if(!newBankName) setNewBankName("CSV Crypto Pool");
-                                if(!newBankSubject) setNewBankSubject("Computer Science");
+                                if (!newBankName) setNewBankName("CSV Crypto Pool");
+                                if (!newBankSubject) setNewBankSubject("Computer Science");
                               }}
                               className="text-[9px] font-bold text-teal-400 hover:text-teal-300 font-mono transition-colors cursor-pointer"
                             >
@@ -5500,9 +5487,9 @@ export default function App() {
                                 Question Bank JSON Validated Successfully
                               </p>
                               <p className="text-[10px] text-slate-500">
-                                Contains <span className="text-white font-bold">{parsed.length}</span> questions: 
-                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> | 
-                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> | 
+                                Contains <span className="text-white font-bold">{parsed.length}</span> questions:
+                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> |
+                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> |
                                 <span className="text-rose-500 font-semibold ml-1.5">{hard} Hard</span>
                               </p>
                             </div>
@@ -5533,9 +5520,9 @@ export default function App() {
                                 Aiken Text Format Decoded successfully
                               </p>
                               <p className="text-[10px] text-slate-500">
-                                Parsed <span className="text-white font-bold">{parsed.length}</span> questions: 
-                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> | 
-                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> | 
+                                Parsed <span className="text-white font-bold">{parsed.length}</span> questions:
+                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> |
+                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> |
                                 <span className="text-rose-500 font-semibold ml-1.5">{hard} Hard</span>
                               </p>
                             </div>
@@ -5566,9 +5553,9 @@ export default function App() {
                                 CSV Spreadsheet Decoded successfully
                               </p>
                               <p className="text-[10px] text-slate-500">
-                                Parsed <span className="text-white font-bold">{parsed.length}</span> rows/questions: 
-                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> | 
-                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> | 
+                                Parsed <span className="text-white font-bold">{parsed.length}</span> rows/questions:
+                                <span className="text-emerald-500 font-semibold ml-1.5">{easy} Easy</span> |
+                                <span className="text-amber-500 font-semibold ml-1.5">{med} Medium</span> |
                                 <span className="text-rose-500 font-semibold ml-1.5">{hard} Hard</span>
                               </p>
                             </div>
@@ -5679,23 +5666,21 @@ export default function App() {
                                             <span className="text-[9px] font-mono font-bold text-slate-400 mr-2">Q{idx + 1}.</span>
                                             <span className="text-slate-200 font-medium font-sans">{q.text}</span>
                                           </div>
-                                          <span className={`text-[8px] font-bold font-mono px-1.5 py-0.5 rounded uppercase shrink-0 border select-none ${
-                                            q.difficulty === 'Easy'
+                                          <span className={`text-[8px] font-bold font-mono px-1.5 py-0.5 rounded uppercase shrink-0 border select-none ${q.difficulty === 'Easy'
                                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                               : q.difficulty === 'Medium'
-                                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                              : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                          }`}>
+                                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                            }`}>
                                             {q.difficulty}
                                           </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 text-[10px] pl-5">
                                           {q.options.map((opt: string, oIdx: number) => (
-                                            <div key={oIdx} className={`p-1.5 rounded flex items-center justify-between ${
-                                              oIdx === q.correctOptionIndex
+                                            <div key={oIdx} className={`p-1.5 rounded flex items-center justify-between ${oIdx === q.correctOptionIndex
                                                 ? 'bg-emerald-950/30 border border-emerald-800/30 text-emerald-400 font-semibold'
                                                 : 'bg-slate-950/40 text-slate-400 border border-transparent'
-                                            }`}>
+                                              }`}>
                                               <span className="truncate">{String.fromCharCode(65 + oIdx)}. {opt}</span>
                                               {oIdx === q.correctOptionIndex && (
                                                 <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-bold font-mono uppercase tracking-wider shrink-0 ml-1">Correct</span>
@@ -5729,7 +5714,7 @@ export default function App() {
                     </h3>
                     <p className="text-xs text-slate-500 font-sans mt-0.5">Select a quiz module below to view deep academic metrics, attendance logs, and marks classification.</p>
                   </div>
-                  
+
                   {/* Controls Container with Name Filter & Dropdown Selector */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     {/* Student Name Filter Input */}
@@ -5782,8 +5767,8 @@ export default function App() {
                   const totalRegistered = registeredStudents.length;
 
                   // 2. Submissions belonging to this exam
-                  const filteredSubmissions = isAll 
-                    ? synchronizedSubmissions 
+                  const filteredSubmissions = isAll
+                    ? synchronizedSubmissions
                     : synchronizedSubmissions.filter(s => s.examId === analyticsExamId);
 
                   // 3. Attended count (unique candidates who submitted for this/all exam)
@@ -5818,13 +5803,12 @@ export default function App() {
                     <div className="space-y-6">
                       {/* Stat summary cards for active selection */}
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <div 
+                        <div
                           onClick={() => setAnalyzeActiveFilter(analyzeActiveFilter === 'registered' ? 'all-attended' : 'registered')}
-                          className={`p-4 rounded-xl flex items-center gap-3.5 cursor-pointer transition-all ${
-                            analyzeActiveFilter === 'registered'
+                          className={`p-4 rounded-xl flex items-center gap-3.5 cursor-pointer transition-all ${analyzeActiveFilter === 'registered'
                               ? 'bg-blue-50/90 border-2 border-blue-500 shadow-md ring-2 ring-blue-100 scale-[1.02]'
                               : 'bg-slate-50 hover:bg-slate-100 border border-slate-150 hover:border-slate-250 hover:scale-[1.01]'
-                          }`}
+                            }`}
                           title="Click to view and filter registered portal student accounts below"
                         >
                           <span className="text-2xl p-2.5 bg-blue-50 text-blue-600 rounded-lg">👥</span>
@@ -5838,13 +5822,12 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div 
+                        <div
                           onClick={() => setAnalyzeActiveFilter(analyzeActiveFilter === 'attended' ? 'all-attended' : 'attended')}
-                          className={`p-4 rounded-xl flex items-center gap-3.5 cursor-pointer transition-all ${
-                            analyzeActiveFilter === 'attended'
+                          className={`p-4 rounded-xl flex items-center gap-3.5 cursor-pointer transition-all ${analyzeActiveFilter === 'attended'
                               ? 'bg-emerald-50/90 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 scale-[1.02]'
                               : 'bg-slate-50 hover:bg-slate-100 border border-slate-150 hover:border-slate-250 hover:scale-[1.01]'
-                          }`}
+                            }`}
                           title="Click to view unique student attendance profiles below"
                         >
                           <span className="text-2xl p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">🎓</span>
@@ -5893,13 +5876,12 @@ export default function App() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* First Category */}
-                          <div 
+                          <div
                             onClick={() => setAnalyzeActiveFilter(analyzeActiveFilter === 'first-cat' ? 'all-attended' : 'first-cat')}
-                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${
-                              analyzeActiveFilter === 'first-cat'
+                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${analyzeActiveFilter === 'first-cat'
                                 ? 'bg-emerald-50 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 scale-[1.01]'
                                 : 'bg-white border border-slate-100 hover:border-slate-200 hover:bg-slate-50/40'
-                            }`}
+                              }`}
                             title="Click to view First Category (Excellent: ≥ 75%) student attempts"
                           >
                             <div className="flex justify-between items-center">
@@ -5915,13 +5897,12 @@ export default function App() {
                           </div>
 
                           {/* Second Category */}
-                          <div 
+                          <div
                             onClick={() => setAnalyzeActiveFilter(analyzeActiveFilter === 'second-cat' ? 'all-attended' : 'second-cat')}
-                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${
-                              analyzeActiveFilter === 'second-cat'
+                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${analyzeActiveFilter === 'second-cat'
                                 ? 'bg-amber-50 border-2 border-amber-500 shadow-md ring-2 ring-amber-100 scale-[1.01]'
                                 : 'bg-white border border-slate-100 hover:border-slate-200 hover:bg-slate-50/40'
-                            }`}
+                              }`}
                             title="Click to view Second Category (Good: 50% - 74%) student attempts"
                           >
                             <div className="flex justify-between items-center">
@@ -5937,13 +5918,12 @@ export default function App() {
                           </div>
 
                           {/* Third Category */}
-                          <div 
+                          <div
                             onClick={() => setAnalyzeActiveFilter(analyzeActiveFilter === 'third-cat' ? 'all-attended' : 'third-cat')}
-                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${
-                              analyzeActiveFilter === 'third-cat'
+                            className={`p-3.5 rounded-lg space-y-2.5 shadow-sm cursor-pointer transition-all ${analyzeActiveFilter === 'third-cat'
                                 ? 'bg-rose-50 border-2 border-rose-500 shadow-md ring-2 ring-rose-100 scale-[1.01]'
                                 : 'bg-white border border-slate-100 hover:border-slate-200 hover:bg-slate-50/40'
-                            }`}
+                              }`}
                             title="Click to view Third Category (Needs Review: < 50%) student attempts"
                           >
                             <div className="flex justify-between items-center">
@@ -6043,13 +6023,12 @@ export default function App() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                           {cand.attempts.map((att: any, attIdx: number) => (
-                                            <span 
-                                              key={attIdx} 
-                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase ${
-                                                att.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                att.status === 'interrupted' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                                                'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
-                                              }`}
+                                            <span
+                                              key={attIdx}
+                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase ${att.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                  att.status === 'interrupted' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                                    'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                                                }`}
                                               title={`Attempt ID: ${att.id}`}
                                             >
                                               {att.status} {att.score !== undefined && `(${att.score}%)`}
@@ -6121,11 +6100,10 @@ export default function App() {
                             </p>
                           </div>
                           <div>
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold font-mono uppercase tracking-wide flex items-center gap-1 ${
-                              candidatePortalEnabled 
-                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold font-mono uppercase tracking-wide flex items-center gap-1 ${candidatePortalEnabled
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                 : "bg-rose-100 text-rose-800 border border-rose-300"
-                            }`}>
+                              }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${candidatePortalEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                               Portal: {candidatePortalEnabled ? "ACTIVE / ONLINE" : "DISABLED / OFFLINE"}
                             </span>
@@ -6138,7 +6116,7 @@ export default function App() {
                               {candidatePortalEnabled ? "Disable Student & Candidate Access" : "Enable Student & Candidate Access"}
                             </div>
                             <p className="text-[11px] text-slate-500 max-w-xl leading-normal">
-                              {candidatePortalEnabled 
+                              {candidatePortalEnabled
                                 ? "Disabling the portal prevents candidates from logging in, registering new accounts, downloading exams, or synchronizing their finished exams. Currently active exams are unaffected."
                                 : "Enabling the portal restores access immediately, allowing candidates to register, log in, view live exams, and submit completed questionnaires."
                               }
@@ -6150,11 +6128,10 @@ export default function App() {
                               type="button"
                               disabled={fetchingPortalSettings}
                               onClick={() => handleTogglePortalSettings(!candidatePortalEnabled)}
-                              className={`px-4 py-2.5 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto ${
-                                candidatePortalEnabled
+                              className={`px-4 py-2.5 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto ${candidatePortalEnabled
                                   ? "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300 hover:border-rose-400"
                                   : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300 hover:border-emerald-400"
-                              }`}
+                                }`}
                             >
                               {fetchingPortalSettings ? (
                                 <>
@@ -6508,11 +6485,10 @@ export default function App() {
                                       <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
                                         <span>Submitted: {displayPt.date}</span>
                                         {displayPt.attempt.cheatingAnalysis && (
-                                          <span className={`px-1 rounded font-bold text-[8px] uppercase tracking-wider ${
-                                            displayPt.attempt.cheatingAnalysis.riskLevel === "High" ? "bg-rose-50 text-rose-600 border border-rose-100" :
-                                            displayPt.attempt.cheatingAnalysis.riskLevel === "Medium" ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                                            "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                          }`}>
+                                          <span className={`px-1 rounded font-bold text-[8px] uppercase tracking-wider ${displayPt.attempt.cheatingAnalysis.riskLevel === "High" ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                                              displayPt.attempt.cheatingAnalysis.riskLevel === "Medium" ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                                                "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                            }`}>
                                             Risk: {displayPt.attempt.cheatingAnalysis.riskLevel}
                                           </span>
                                         )}
@@ -6539,14 +6515,13 @@ export default function App() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Active View:</span>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border font-mono ${
-                                analyzeActiveFilter === 'registered' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                analyzeActiveFilter === 'attended' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                analyzeActiveFilter === 'first-cat' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                analyzeActiveFilter === 'second-cat' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                analyzeActiveFilter === 'third-cat' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                'bg-slate-100 text-slate-700 border-slate-200'
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border font-mono ${analyzeActiveFilter === 'registered' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                  analyzeActiveFilter === 'attended' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                    analyzeActiveFilter === 'first-cat' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                      analyzeActiveFilter === 'second-cat' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                        analyzeActiveFilter === 'third-cat' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                          'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}>
                                 {analyzeActiveFilter === 'all-attended' && "All Attended Attempts"}
                                 {analyzeActiveFilter === 'registered' && "Registered Students Master List"}
                                 {analyzeActiveFilter === 'attended' && "Attended Student Profiles"}
@@ -6555,7 +6530,7 @@ export default function App() {
                                 {analyzeActiveFilter === 'third-cat' && "Third Category (Needs Review)"}
                               </span>
                               {analyzeActiveFilter !== 'all-attended' && (
-                                <button 
+                                <button
                                   onClick={() => setAnalyzeActiveFilter('all-attended')}
                                   className="text-[10px] text-indigo-600 hover:text-indigo-850 font-bold underline cursor-pointer ml-1"
                                 >
@@ -6567,31 +6542,28 @@ export default function App() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <button
                                 onClick={() => setAnalyzeActiveFilter('all-attended')}
-                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
-                                  analyzeActiveFilter === 'all-attended' 
-                                    ? 'bg-slate-800 text-white shadow-sm' 
+                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${analyzeActiveFilter === 'all-attended'
+                                    ? 'bg-slate-800 text-white shadow-sm'
                                     : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-                                }`}
+                                  }`}
                               >
                                 All Attempts
                               </button>
                               <button
                                 onClick={() => setAnalyzeActiveFilter('registered')}
-                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
-                                  analyzeActiveFilter === 'registered' 
-                                    ? 'bg-blue-600 text-white shadow-sm' 
+                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${analyzeActiveFilter === 'registered'
+                                    ? 'bg-blue-600 text-white shadow-sm'
                                     : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-                                }`}
+                                  }`}
                               >
                                 Registered ({Math.max(totalRegistered, 1)})
                               </button>
                               <button
                                 onClick={() => setAnalyzeActiveFilter('attended')}
-                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
-                                  analyzeActiveFilter === 'attended' 
-                                    ? 'bg-emerald-600 text-white shadow-sm' 
+                                className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${analyzeActiveFilter === 'attended'
+                                    ? 'bg-emerald-600 text-white shadow-sm'
                                     : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-                                }`}
+                                  }`}
                               >
                                 Attended ({totalAttended})
                               </button>
@@ -6610,44 +6582,40 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'registered-accountSince': !prev['registered-accountSince'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['registered-accountSince']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['registered-accountSince']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Account Since
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'registered-participation': !prev['registered-participation'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['registered-participation']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['registered-participation']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Participation Status
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'registered-academicCategory': !prev['registered-academicCategory'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['registered-academicCategory']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['registered-academicCategory']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Academic Category
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'registered-bestScore': !prev['registered-bestScore'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['registered-bestScore']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['registered-bestScore']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Best Attempt Score
                                 </button>
@@ -6659,44 +6627,40 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attended-totalAttempts': !prev['attended-totalAttempts'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attended-totalAttempts']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attended-totalAttempts']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Total Attempts
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attended-avgScore': !prev['attended-avgScore'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attended-avgScore']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attended-avgScore']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Average Score
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attended-highestScore': !prev['attended-highestScore'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attended-highestScore']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attended-highestScore']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Highest Score
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attended-academicCategory': !prev['attended-academicCategory'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attended-academicCategory']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attended-academicCategory']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Academic Category
                                 </button>
@@ -6708,44 +6672,40 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attempts-quizModule': !prev['attempts-quizModule'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attempts-quizModule']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attempts-quizModule']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Quiz Module
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attempts-scorePercent': !prev['attempts-scorePercent'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attempts-scorePercent']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attempts-scorePercent']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Score Percentage
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attempts-obtainedMarks': !prev['attempts-obtainedMarks'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attempts-obtainedMarks']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attempts-obtainedMarks']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Obtained Marks
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setHiddenLedgerColumns(prev => ({ ...prev, 'attempts-academicCategory': !prev['attempts-academicCategory'] }))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${
-                                    !hiddenLedgerColumns['attempts-academicCategory']
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer select-none ${!hiddenLedgerColumns['attempts-academicCategory']
                                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                                       : 'bg-white border-slate-200 text-slate-400 line-through'
-                                  }`}
+                                    }`}
                                 >
                                   Academic Category
                                 </button>
@@ -6757,15 +6717,15 @@ export default function App() {
                         {/* Rendering dynamic data content table based on filter */}
                         {(() => {
                           if (analyzeActiveFilter === 'registered') {
-                            const initialList = registeredStudents.length > 0 
-                              ? registeredStudents 
+                            const initialList = registeredStudents.length > 0
+                              ? registeredStudents
                               : [{ username: "student", email: "student@guardian.edu", createdAt: Date.now() - 3600000 * 24 }];
 
                             const displayRegisteredList = initialList.map(student => {
                               const studentAttempts = synchronizedSubmissions.filter(s => s.studentEmail.toLowerCase() === student.email.toLowerCase());
                               const hasAttempted = studentAttempts.length > 0;
-                              const highestScore = hasAttempted 
-                                ? Math.max(...studentAttempts.map(s => s.score || 0)) 
+                              const highestScore = hasAttempted
+                                ? Math.max(...studentAttempts.map(s => s.score || 0))
                                 : null;
                               return {
                                 ...student,
@@ -6779,8 +6739,8 @@ export default function App() {
                             let filteredRegisteredList = displayRegisteredList;
                             if (ledgerSearchQuery.trim()) {
                               const query = ledgerSearchQuery.toLowerCase().trim();
-                              filteredRegisteredList = displayRegisteredList.filter(student => 
-                                (student.username || "").toLowerCase().includes(query) || 
+                              filteredRegisteredList = displayRegisteredList.filter(student =>
+                                (student.username || "").toLowerCase().includes(query) ||
                                 (student.email || "").toLowerCase().includes(query)
                               );
                             }
@@ -6915,7 +6875,7 @@ export default function App() {
                                         }
                                       }
 
-                                      const joinDateStr = student.createdAt 
+                                      const joinDateStr = student.createdAt
                                         ? new Date(student.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                                         : "Jul 4, 2026";
 
@@ -7029,7 +6989,7 @@ export default function App() {
                               const lastActive = studentAttempts.reduce((latest, sub) => Math.max(latest, sub.startTime), 0);
                               const highestScore = Math.max(...studentAttempts.map(sub => sub.score || 0));
                               const avgScore = Math.round(studentAttempts.reduce((acc, sub) => acc + (sub.score || 0), 0) / studentAttempts.length);
-                              
+
                               const hasHighRisk = studentAttempts.some(sub => sub.cheatingAnalysis?.riskLevel === 'High' || sub.cheatingAnalysis?.verdict === 'Suspicious');
                               const hasMediumRisk = studentAttempts.some(sub => sub.cheatingAnalysis?.riskLevel === 'Medium' || sub.cheatingAnalysis?.verdict === 'Needs Review');
                               const riskLevel = hasHighRisk ? 'High' : (hasMediumRisk ? 'Medium' : 'Low');
@@ -7050,8 +7010,8 @@ export default function App() {
                             let filteredAttendedList = displayAttendedList;
                             if (ledgerSearchQuery.trim()) {
                               const query = ledgerSearchQuery.toLowerCase().trim();
-                              filteredAttendedList = displayAttendedList.filter(student => 
-                                String(student.name || "").toLowerCase().includes(query) || 
+                              filteredAttendedList = displayAttendedList.filter(student =>
+                                String(student.name || "").toLowerCase().includes(query) ||
                                 String(student.email || "").toLowerCase().includes(query)
                               );
                             }
@@ -7276,8 +7236,8 @@ export default function App() {
                           let filteredAttempts = displayAttempts;
                           if (ledgerSearchQuery.trim()) {
                             const query = ledgerSearchQuery.toLowerCase().trim();
-                            filteredAttempts = displayAttempts.filter(sub => 
-                              (sub.studentName || "").toLowerCase().includes(query) || 
+                            filteredAttempts = displayAttempts.filter(sub =>
+                              (sub.studentName || "").toLowerCase().includes(query) ||
                               (sub.studentEmail || "").toLowerCase().includes(query)
                             );
                           }
@@ -7309,10 +7269,10 @@ export default function App() {
                               <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-100 text-slate-500 text-xs font-mono">
                                 {ledgerSearchQuery.trim()
                                   ? "No student records match the search filter."
-                                  : (analyzeActiveFilter === 'all-attended' 
-                                      ? "No students have attended this quiz module yet." 
-                                      : "No student records match this selected category filter."
-                                    )
+                                  : (analyzeActiveFilter === 'all-attended'
+                                    ? "No students have attended this quiz module yet."
+                                    : "No student records match this selected category filter."
+                                  )
                                 }
                               </div>
                             );
@@ -7384,7 +7344,7 @@ export default function App() {
                                   {sortedAttempts.map((sub) => {
                                     const examMeta = availableExams.find(e => e.id === sub.examId);
                                     const scorePct = sub.score || 0;
-                                    
+
                                     let obtainedScoreStr = "N/A";
                                     if (examMeta) {
                                       const totalQCount = examMeta.questions.length;
@@ -7406,9 +7366,9 @@ export default function App() {
 
                                     const isSuspiciousOrLowScore = scorePct < 50 || sub.cheatingAnalysis?.verdict === 'Suspicious';
 
-                                    const riskLevel = sub.cheatingAnalysis?.riskLevel || 
-                                      (sub.cheatingAnalysis?.verdict === 'Suspicious' ? 'High' : 
-                                       (sub.cheatingAnalysis?.verdict === 'Needs Review' ? 'Medium' : 'Low'));
+                                    const riskLevel = sub.cheatingAnalysis?.riskLevel ||
+                                      (sub.cheatingAnalysis?.verdict === 'Suspicious' ? 'High' :
+                                        (sub.cheatingAnalysis?.verdict === 'Needs Review' ? 'Medium' : 'Low'));
 
                                     let riskBadgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
                                     if (riskLevel === 'High') {
@@ -7501,7 +7461,7 @@ export default function App() {
                 <div className="col-span-12 sm:col-span-3 bg-white p-4 border border-slate-200 rounded-xl shadow-sm">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Average Score</div>
                   <div className="text-xl font-bold text-slate-900">
-                    {synchronizedSubmissions.length > 0 
+                    {synchronizedSubmissions.length > 0
                       ? `${Math.round(synchronizedSubmissions.reduce((acc, sub) => acc + (sub.score || 0), 0) / synchronizedSubmissions.length)}%`
                       : "0%"
                     }
@@ -7528,7 +7488,7 @@ export default function App() {
 
               {/* Flex Grid layout for Exams creation and Grading list */}
               <div className="grid grid-cols-12 gap-6">
-                
+
                 {/* SUBMISSION & PROCTOR AUDITING REGISTRY */}
                 <div className="col-span-12 lg:col-span-7 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[400px]">
                   <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -7536,7 +7496,7 @@ export default function App() {
                       <h3 className="font-bold text-sm text-slate-900">Synchronized Examination Registry</h3>
                       <p className="text-[11px] text-slate-500">Live proctor telemetry uploaded from local devices</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setShowCreateExam(!showCreateExam)}
                       className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold transition-all flex items-center gap-1.5"
                     >
@@ -7735,11 +7695,10 @@ export default function App() {
                                     const isSelected = selectedRegistryAttemptIds.includes(sub.id);
 
                                     return (
-                                      <tr 
-                                        key={sub.id} 
-                                        className={`transition-colors ${
-                                          isSelected ? "bg-indigo-50/20 hover:bg-indigo-50/35" : "hover:bg-slate-50/80"
-                                        }`}
+                                      <tr
+                                        key={sub.id}
+                                        className={`transition-colors ${isSelected ? "bg-indigo-50/20 hover:bg-indigo-50/35" : "hover:bg-slate-50/80"
+                                          }`}
                                       >
                                         <td className="px-4 py-3 w-10 text-center">
                                           <input
@@ -7763,18 +7722,16 @@ export default function App() {
                                           {originalExam?.title || sub.examId}
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                            (sub.score || 0) >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                          }`}>
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${(sub.score || 0) >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                            }`}>
                                             {sub.score}%
                                           </span>
                                         </td>
                                         <td className="px-4 py-3 font-mono">
-                                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                                            risk === 'High' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                                            risk === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                            'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                          }`}>
+                                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${risk === 'High' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                              risk === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            }`}>
                                             {risk.toUpperCase()} RISK
                                           </span>
                                         </td>
@@ -7833,11 +7790,10 @@ export default function App() {
                                   </button>
                                 </div>
                                 <div className="mt-1">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    activeAdminReport.cheatingAnalysis?.verdict === 'Suspicious' ? 'bg-rose-100 text-rose-700' :
-                                    activeAdminReport.cheatingAnalysis?.verdict === 'Needs Review' ? 'bg-amber-100 text-amber-700' :
-                                    'bg-emerald-100 text-emerald-700'
-                                  }`}>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${activeAdminReport.cheatingAnalysis?.verdict === 'Suspicious' ? 'bg-rose-100 text-rose-700' :
+                                      activeAdminReport.cheatingAnalysis?.verdict === 'Needs Review' ? 'bg-amber-100 text-amber-700' :
+                                        'bg-emerald-100 text-emerald-700'
+                                    }`}>
                                     Verdict: {activeAdminReport.cheatingAnalysis?.verdict || "Clear"}
                                   </span>
                                 </div>
@@ -7930,7 +7886,7 @@ export default function App() {
                                           <span className="text-[5px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">Logs</span>
                                         </div>
                                       </div>
-                                      
+
                                       <div className="flex-1 space-y-0.5 text-[9px] font-mono leading-tight">
                                         {segments.map((seg, i) => (
                                           <div key={i} className="flex items-center justify-between gap-1 py-0.2">
@@ -7956,7 +7912,7 @@ export default function App() {
                           const blurLogs = activeAdminReport.tamperLogs.filter(l => l.type === 'tab-blur');
                           const resizeLogs = activeAdminReport.tamperLogs.filter(l => l.type === 'resize');
                           const disconnectLogs = activeAdminReport.tamperLogs.filter(l => l.type === 'network-reconnect');
-                          
+
                           const alerts: Array<{ type: 'warning' | 'info' | 'critical'; title: string; desc: string; icon: any }> = [];
 
                           if (blurLogs.length >= 4) {
@@ -8032,27 +7988,24 @@ export default function App() {
                               ) : (
                                 <div className="space-y-1.5">
                                   {alerts.map((alert, idx) => (
-                                    <div 
-                                      key={idx} 
-                                      className={`p-2 rounded border text-[10px] leading-normal flex items-start gap-2 ${
-                                        alert.type === 'critical' ? 'bg-rose-50 border-rose-200 text-rose-950' :
-                                        alert.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-950' :
-                                        'bg-sky-50 border-sky-200 text-sky-950'
-                                      }`}
+                                    <div
+                                      key={idx}
+                                      className={`p-2 rounded border text-[10px] leading-normal flex items-start gap-2 ${alert.type === 'critical' ? 'bg-rose-50 border-rose-200 text-rose-950' :
+                                          alert.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-950' :
+                                            'bg-sky-50 border-sky-200 text-sky-950'
+                                        }`}
                                     >
-                                      <alert.icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                                        alert.type === 'critical' ? 'text-rose-600' :
-                                        alert.type === 'warning' ? 'text-amber-600' :
-                                        'text-sky-600'
-                                      }`} />
+                                      <alert.icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${alert.type === 'critical' ? 'text-rose-600' :
+                                          alert.type === 'warning' ? 'text-amber-600' :
+                                            'text-sky-600'
+                                        }`} />
                                       <div className="min-w-0 flex-1">
                                         <div className="font-extrabold flex items-center gap-1">
                                           <span>{alert.title}</span>
-                                          <span className={`text-[7px] px-1 rounded font-mono uppercase font-bold tracking-wider shrink-0 ${
-                                            alert.type === 'critical' ? 'bg-rose-100 text-rose-800' :
-                                            alert.type === 'warning' ? 'bg-amber-100 text-amber-800' :
-                                            'bg-sky-100 text-sky-800'
-                                          }`}>{alert.type}</span>
+                                          <span className={`text-[7px] px-1 rounded font-mono uppercase font-bold tracking-wider shrink-0 ${alert.type === 'critical' ? 'bg-rose-100 text-rose-800' :
+                                              alert.type === 'warning' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-sky-100 text-sky-800'
+                                            }`}>{alert.type}</span>
                                         </div>
                                         <p className="opacity-95 mt-0.5 font-sans leading-relaxed">{alert.desc}</p>
                                       </div>
@@ -8170,7 +8123,7 @@ export default function App() {
                 <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4" id="custom-exam-builder">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                     <h3 className="font-bold text-sm text-slate-900">Configure Custom Examination Module</h3>
-                    <button 
+                    <button
                       onClick={() => setShowCreateExam(false)}
                       className="text-xs text-slate-400 hover:text-slate-600"
                     >
@@ -8186,11 +8139,10 @@ export default function App() {
                         setIsAdaptiveExam(false);
                         setIsAutoGenerateExam(false);
                       }}
-                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${
-                        !isAdaptiveExam && !isAutoGenerateExam
+                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${!isAdaptiveExam && !isAutoGenerateExam
                           ? 'bg-slate-900 text-white shadow'
                           : 'text-slate-500 hover:text-slate-800'
-                      }`}
+                        }`}
                     >
                       📝 Standard Static Exam
                     </button>
@@ -8200,11 +8152,10 @@ export default function App() {
                         setIsAdaptiveExam(true);
                         setIsAutoGenerateExam(false);
                       }}
-                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${
-                        isAdaptiveExam
+                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${isAdaptiveExam
                           ? 'bg-indigo-600 text-white shadow'
                           : 'text-slate-500 hover:text-indigo-600'
-                      }`}
+                        }`}
                     >
                       ⚡ Dynamic Adaptive Exam
                     </button>
@@ -8214,11 +8165,10 @@ export default function App() {
                         setIsAdaptiveExam(false);
                         setIsAutoGenerateExam(true);
                       }}
-                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${
-                        isAutoGenerateExam
+                      className={`flex-1 py-1.5 text-center rounded-md text-xs font-bold transition-all ${isAutoGenerateExam
                           ? 'bg-teal-600 text-white shadow'
                           : 'text-slate-500 hover:text-teal-600'
-                      }`}
+                        }`}
                     >
                       🤖 Auto-Generated Exam
                     </button>
@@ -8562,17 +8512,16 @@ export default function App() {
           {/* 3. SQLITE TERMINAL & INTERACTIVE CONSOLE */}
           {currentTab === 'db-console' && currentUser?.role === 'admin' && (
             <div className="space-y-6" id="sqlite-console-view">
-              
+
               {/* Console Sub-Tabs Navigation */}
               <div className="flex border-b border-slate-800 gap-1">
                 <button
                   type="button"
                   onClick={() => setConsoleMode('terminal')}
-                  className={`px-4 py-2 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-                    consoleMode === 'terminal'
+                  className={`px-4 py-2 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${consoleMode === 'terminal'
                       ? 'border-teal-500 text-teal-400 font-extrabold'
                       : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Terminal className="w-3.5 h-3.5" />
                   Terminal CLI (Raw SQL)
@@ -8580,11 +8529,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => { setConsoleMode('visual-gui'); loadGuiTableData(guiActiveTable); }}
-                  className={`px-4 py-2 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-                    consoleMode === 'visual-gui'
+                  className={`px-4 py-2 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${consoleMode === 'visual-gui'
                       ? 'border-teal-500 text-teal-400 font-extrabold'
                       : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Database className="w-3.5 h-3.5" />
                   Visual Database GUI (No-Code Browser)
@@ -8701,10 +8649,10 @@ export default function App() {
               ) : (
                 /* GUI Visual Database Browser */
                 <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col min-h-[500px]">
-                  
+
                   {/* Active Table Selector & Actions */}
                   <div className="p-4 bg-slate-950 border-b border-slate-800 flex flex-col gap-4">
-                    
+
                     {/* Database Console Header Stats */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-900 pb-3">
                       <div>
@@ -8731,18 +8679,16 @@ export default function App() {
                             key={table}
                             type="button"
                             onClick={() => { setGuiActiveTable(table); loadGuiTableData(table); setGuiSearchQuery(""); }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 font-mono flex items-center gap-1.5 ${
-                              guiActiveTable === table
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 font-mono flex items-center gap-1.5 ${guiActiveTable === table
                                 ? 'bg-teal-500/10 text-teal-400 border border-teal-500/30 font-extrabold shadow-sm'
                                 : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-850'
-                            }`}
+                              }`}
                           >
                             <span>{table}</span>
-                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-sans ${
-                              guiActiveTable === table 
-                                ? 'bg-teal-400 text-slate-950 font-bold' 
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-sans ${guiActiveTable === table
+                                ? 'bg-teal-400 text-slate-950 font-bold'
                                 : 'bg-slate-800 text-slate-400'
-                            }`}>
+                              }`}>
                               {tableCounts[table] ?? 0}
                             </span>
                           </button>
@@ -8823,7 +8769,7 @@ export default function App() {
                       const filteredRows = guiTableRows.filter(row => {
                         if (!guiSearchQuery.trim()) return true;
                         const cleanQuery = guiSearchQuery.toLowerCase();
-                        return Object.values(row).some(val => 
+                        return Object.values(row).some(val =>
                           String(val).toLowerCase().includes(cleanQuery)
                         );
                       });
@@ -8911,8 +8857,8 @@ export default function App() {
                 <span className="text-teal-400">➕</span>
                 Insert Record: SQLite <code className="text-teal-400 font-mono text-[11px] bg-teal-500/5 px-1.5 py-0.5 rounded">{guiActiveTable}</code>
               </h3>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowAddRowModal(false)}
                 className="text-slate-400 hover:text-white font-bold"
               >
@@ -8999,13 +8945,13 @@ export default function App() {
 
       {/* Zoomed Screenshot Preview Overlay */}
       {activeZoomedScreenshot && (
-        <div 
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 cursor-zoom-out" 
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 cursor-zoom-out"
           onClick={() => setActiveZoomedScreenshot(null)}
           id="screenshot-zoom-overlay"
         >
           <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-3 shadow-2xl">
-            <button 
+            <button
               className="absolute top-4 right-4 bg-black/60 hover:bg-black/90 text-white rounded-full p-2 text-xs focus:outline-none font-bold"
               onClick={(e) => {
                 e.stopPropagation();
@@ -9014,9 +8960,9 @@ export default function App() {
             >
               ✕ Close
             </button>
-            <img 
-              src={activeZoomedScreenshot} 
-              alt="Zoomed proctor screenshot" 
+            <img
+              src={activeZoomedScreenshot}
+              alt="Zoomed proctor screenshot"
               referrerPolicy="no-referrer"
               className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
             />
