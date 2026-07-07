@@ -1,0 +1,8 @@
+[
+  {
+    "username": "student",
+    "email": "student@guardian.edu",
+    "passwordHash": "Password123!",
+    "createdAt": 1783405726816
+  }
+]

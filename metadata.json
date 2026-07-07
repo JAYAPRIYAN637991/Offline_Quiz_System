@@ -1,0 +1,6 @@
+{
+  "name": "Secure Offline Quiz System",
+  "description": "A highly secure, offline-first digital examination platform featuring AES-encrypted local storage, a simulated local SQLite database, proctoring metrics, anti-tampering guards, and automated AI cheating evaluation using Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

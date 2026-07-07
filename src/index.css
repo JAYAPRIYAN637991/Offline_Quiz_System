@@ -1,0 +1,344 @@
+@import "tailwindcss";
+
+/* ============================================================ */
+/* GLOBAL FULL-PAGE LAYOUT RESETS                                */
+/* ============================================================ */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Monospace font for terminal/code areas */
+code, kbd, samp, pre, .font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}
+
+/* Premium scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+/* Smooth focus ring */
+*:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+
+@layer utilities {
+  /* Dynamic themes custom parameters */
+  .theme-midnight {
+    --bg-app: #030712;
+    --bg-surface: #0b0f19;
+    --bg-card: #0f172a;
+    --bg-card-hover: #1e293b;
+    --bg-input: #020617;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: #1e293b;
+    --border-accent: #38bdf8;
+  }
+
+  .theme-high-contrast-light {
+    --bg-app: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f1f5f9;
+    --bg-input: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #1e293b;
+    --border-color: #000000;
+    --border-accent: #000000;
+  }
+}
+
+/* Base transitions */
+.theme-midnight, .theme-high-contrast-light {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 1. MIDNIGHT (DARK MODE) OVERRIDES                                          */
+/* -------------------------------------------------------------------------- */
+
+/* Root page & containers */
+.theme-midnight#offline-quiz-system-root,
+.theme-midnight #tab-content-area {
+  background-color: #030712 !important;
+  color: #f8fafc !important;
+}
+
+/* Header & Panels */
+.theme-midnight header,
+.theme-midnight .bg-white {
+  background-color: #0b0f19 !important;
+  border-color: #1e293b !important;
+}
+
+/* Cards & Containers */
+.theme-midnight .bg-slate-50,
+.theme-midnight .bg-slate-100,
+.theme-midnight .bg-indigo-50/50,
+.theme-midnight .bg-indigo-50,
+.theme-midnight .bg-emerald-50,
+.theme-midnight .bg-amber-50,
+.theme-midnight .bg-rose-50 {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+/* Texts */
+.theme-midnight .text-slate-900,
+.theme-midnight .text-slate-800,
+.theme-midnight .text-slate-700,
+.theme-midnight .text-slate-600 {
+  color: #f1f5f9 !important;
+}
+
+.theme-midnight .text-slate-500,
+.theme-midnight .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Borders */
+.theme-midnight .border-slate-100,
+.theme-midnight .border-slate-200,
+.theme-midnight .border-slate-300,
+.theme-midnight .border-indigo-100 {
+  border-color: #1e293b !important;
+}
+
+/* Standard Inputs in Dark Mode */
+.theme-midnight input[type="text"],
+.theme-midnight input[type="email"],
+.theme-midnight input[type="password"],
+.theme-midnight select,
+.theme-midnight textarea {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+.theme-midnight input[type="text"]:focus,
+.theme-midnight input[type="email"]:focus,
+.theme-midnight input[type="password"]:focus,
+.theme-midnight select:focus,
+.theme-midnight textarea:focus {
+  border-color: #14b8a6 !important; /* teal */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* 2. HIGH-CONTRAST LIGHT MODE OVERRIDES                                       */
+/* -------------------------------------------------------------------------- */
+
+/* Force all backgrounds to be pure white or very high contrast white */
+.theme-high-contrast-light,
+.theme-high-contrast-light #offline-quiz-system-root,
+.theme-high-contrast-light #tab-content-area,
+.theme-high-contrast-light header,
+.theme-high-contrast-light aside,
+.theme-high-contrast-light #app-sidebar,
+.theme-high-contrast-light .bg-slate-900,
+.theme-high-contrast-light .bg-slate-950,
+.theme-high-contrast-light .bg-[#0f172a],
+.theme-high-contrast-light .bg-[#020617],
+.theme-high-contrast-light .bg-[#090d16],
+.theme-high-contrast-light .bg-indigo-950,
+.theme-high-contrast-light .bg-teal-950,
+.theme-high-contrast-light .bg-slate-950/40,
+.theme-high-contrast-light .bg-slate-900/40,
+.theme-high-contrast-light .bg-slate-900/80,
+.theme-high-contrast-light .bg-slate-950/85,
+.theme-high-contrast-light .bg-slate-950/90,
+.theme-high-contrast-light .bg-slate-950/98,
+.theme-high-contrast-light .bg-[#f8fafc],
+.theme-high-contrast-light .bg-indigo-50/50,
+.theme-high-contrast-light .bg-emerald-50,
+.theme-high-contrast-light .bg-amber-50,
+.theme-high-contrast-light .bg-rose-50,
+.theme-high-contrast-light .bg-slate-50,
+.theme-high-contrast-light .bg-slate-100,
+.theme-high-contrast-light .bg-white {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+/* Force all text to be pitch black for maximum legibility */
+.theme-high-contrast-light,
+.theme-high-contrast-light h1,
+.theme-high-contrast-light h2,
+.theme-high-contrast-light h3,
+.theme-high-contrast-light h4,
+.theme-high-contrast-light h5,
+.theme-high-contrast-light h6,
+.theme-high-contrast-light p,
+.theme-high-contrast-light span,
+.theme-high-contrast-light label,
+.theme-high-contrast-light td,
+.theme-high-contrast-light th,
+.theme-high-contrast-light small,
+.theme-high-contrast-light div,
+.theme-high-contrast-light li,
+.theme-high-contrast-light select,
+.theme-high-contrast-light button,
+.theme-high-contrast-light input,
+.theme-high-contrast-light textarea {
+  color: #000000 !important;
+}
+
+/* Force pure white icons and specific high-contrast settings */
+.theme-high-contrast-light svg {
+  stroke: #000000 !important;
+  fill: none !important;
+}
+
+.theme-high-contrast-light svg.fill-current {
+  fill: #000000 !important;
+}
+
+/* Sidebar structure in high contrast */
+.theme-high-contrast-light aside,
+.theme-high-contrast-light #app-sidebar {
+  border-right: 3px solid #000000 !important;
+}
+
+.theme-high-contrast-light aside *,
+.theme-high-contrast-light #app-sidebar * {
+  color: #000000 !important;
+}
+
+.theme-high-contrast-light aside button,
+.theme-high-contrast-light #app-sidebar button {
+  border: 2px solid #000000 !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.theme-high-contrast-light aside button:hover,
+.theme-high-contrast-light #app-sidebar button:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.theme-high-contrast-light aside button:hover *,
+.theme-high-contrast-light #app-sidebar button:hover * {
+  color: #ffffff !important;
+}
+
+/* Inputs and Forms in High Contrast */
+.theme-high-contrast-light input[type="text"],
+.theme-high-contrast-light input[type="email"],
+.theme-high-contrast-light input[type="password"],
+.theme-high-contrast-light input[type="checkbox"],
+.theme-high-contrast-light select,
+.theme-high-contrast-light textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 3px solid #000000 !important;
+  border-radius: 4px !important;
+}
+
+.theme-high-contrast-light input[type="checkbox"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+}
+
+/* Strict solid black borders for everything */
+.theme-high-contrast-light .border,
+.theme-high-contrast-light .border-slate-800,
+.theme-high-contrast-light .border-slate-700,
+.theme-high-contrast-light .border-slate-200,
+.theme-high-contrast-light .border-slate-300,
+.theme-high-contrast-light .border-slate-100,
+.theme-high-contrast-light .border-[#1e293b],
+.theme-high-contrast-light .border-indigo-100,
+.theme-high-contrast-light .border-emerald-200,
+.theme-high-contrast-light .border-amber-200,
+.theme-high-contrast-light .border-rose-200 {
+  border: 2px solid #000000 !important;
+}
+
+/* Modals overlays, headers & navigation status */
+.theme-high-contrast-light header {
+  border-bottom: 3px solid #000000 !important;
+}
+
+/* Custom interactive buttons */
+.theme-high-contrast-light button {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+.theme-high-contrast-light button:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.theme-high-contrast-light button:hover svg {
+  stroke: #ffffff !important;
+}
+
+/* Invert colors for disabled buttons to show clearly */
+.theme-high-contrast-light button:disabled {
+  background-color: #e2e8f0 !important;
+  color: #64748b !important;
+  border-color: #94a3b8 !important;
+  cursor: not-allowed !important;
+}
+
+/* Alerts and Highlights */
+.theme-high-contrast-light [id^="fast-login-modal"],
+.theme-high-contrast-light [id^="screenshot-zoom-overlay"],
+.theme-high-contrast-light #modal-config-container {
+  background-color: #ffffff !important;
+  border: 4px solid #000000 !important;
+  color: #000000 !important;
+}
+
+.theme-high-contrast-light .bg-rose-500,
+.theme-high-contrast-light .bg-emerald-500,
+.theme-high-contrast-light .bg-teal-500,
+.theme-high-contrast-light .bg-indigo-600 {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.theme-high-contrast-light .bg-rose-500 *,
+.theme-high-contrast-light .bg-emerald-500 *,
+.theme-high-contrast-light .bg-teal-500 *,
+.theme-high-contrast-light .bg-indigo-600 * {
+  color: #ffffff !important;
+}
