@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import { Exam, ExamAttempt, TamperEvent, CheatingAnalysis, Question, QuestionBank } from "./src/types";
+import { Exam, ExamAttempt, TamperEvent, CheatingAnalysis, Question, QuestionBank } from "../src/types";
 
 dotenv.config();
 
@@ -1811,4 +1811,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
