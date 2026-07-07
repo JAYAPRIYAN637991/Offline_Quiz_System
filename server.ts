@@ -12,7 +12,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Google Gen AI
 const ai = new GoogleGenAI({
@@ -792,7 +793,7 @@ app.post("/api/auth/admin/register", (req, res) => {
 
   if (validationErrors.length > 0) {
     return res.status(400).json({
-      error: "Security Standards Violation. Administrator credentials fail to meet requirements:\n\n" + 
+      error: "Security Standards Violation. Administrator credentials fail to meet requirements:\n\n" +
         validationErrors.map((err, idx) => `${idx + 1}. ${err}`).join("\n")
     });
   }
@@ -913,7 +914,7 @@ app.post("/api/auth/admin/update", (req, res) => {
 
   if (validationErrors.length > 0) {
     return res.status(400).json({
-      error: "Security Standards Violation. New credentials fail to meet requirements:\n\n" + 
+      error: "Security Standards Violation. New credentials fail to meet requirements:\n\n" +
         validationErrors.map((err, idx) => `• ${err}`).join("\n")
     });
   }
@@ -983,7 +984,7 @@ app.get("/api/exams", (req, res) => {
       filteredExams = [];
     } else {
       const cleanEmail = userEmail.trim().toLowerCase();
-      filteredExams = serverExams.filter(exam => 
+      filteredExams = serverExams.filter(exam =>
         exam.assignedCandidateEmail && exam.assignedCandidateEmail.trim().toLowerCase() === cleanEmail && exam.isStarted === true
       );
     }
@@ -995,16 +996,16 @@ app.get("/api/exams", (req, res) => {
       return safeQuestion;
     });
 
-    const safePool = exam.questionPool 
+    const safePool = exam.questionPool
       ? exam.questionPool.map(q => {
-          const { correctOptionIndex, ...safeQuestion } = q;
-          return {
-            ...safeQuestion,
-            correctOptionHash: correctOptionIndex !== undefined 
-              ? getSHA256Hash(q.id + "-" + correctOptionIndex) 
-              : undefined
-          };
-        })
+        const { correctOptionIndex, ...safeQuestion } = q;
+        return {
+          ...safeQuestion,
+          correctOptionHash: correctOptionIndex !== undefined
+            ? getSHA256Hash(q.id + "-" + correctOptionIndex)
+            : undefined
+        };
+      })
       : undefined;
 
     return {
@@ -1025,7 +1026,7 @@ app.post("/api/exams/:id/assign", (req, res) => {
 
   const { id } = req.params;
   const { email } = req.body;
-  
+
   const exam = serverExams.find(e => e.id === id);
   if (!exam) {
     return res.status(404).json({ error: "Exam not found." });
@@ -1106,10 +1107,10 @@ app.post("/api/exams/:id/start-all", (req, res) => {
 
   registeredCandidates.forEach(candidate => {
     const cleanEmail = candidate.email.trim().toLowerCase();
-    
+
     // Check if there's already an exam copy assigned to this candidate
-    let candidateExam = serverExams.find(e => 
-      e.assignedCandidateEmail && e.assignedCandidateEmail.trim().toLowerCase() === cleanEmail && 
+    let candidateExam = serverExams.find(e =>
+      e.assignedCandidateEmail && e.assignedCandidateEmail.trim().toLowerCase() === cleanEmail &&
       (e.parentExamId === baseExam.id || e.title === baseExam.title)
     );
 
@@ -1222,7 +1223,7 @@ app.post("/api/question-banks", (req, res) => {
   };
 
   serverQuestionBanks.push(newBank);
-  
+
   adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Question Bank uploaded: "${name}" (${questions.length} questions).`,
@@ -1300,18 +1301,18 @@ async function processSingleAttempt(attempt: any): Promise<ExamAttempt> {
     }
   });
 
-  const totalGradedQuestions = originalExam.isAdaptive 
-    ? (attempt.answers ? Object.keys(attempt.answers).length : 5) 
+  const totalGradedQuestions = originalExam.isAdaptive
+    ? (attempt.answers ? Object.keys(attempt.answers).length : 5)
     : originalExam.questions.length;
 
-  const finalScore = totalGradedQuestions > 0 
-    ? Math.round((correctCount / totalGradedQuestions) * 100) 
+  const finalScore = totalGradedQuestions > 0
+    ? Math.round((correctCount / totalGradedQuestions) * 100)
     : 0;
 
   // 2. Format security event logs
   const durationUsed = originalExam.timeLimit * 60 - attempt.timeRemaining;
   const logsCount = attempt.tamperLogs?.length || 0;
-  
+
   const formattedLogs = (attempt.tamperLogs || []).map((log: TamperEvent) => {
     const elapsedSeconds = Math.round((log.timestamp - attempt.startTime) / 1000);
     return `[T+${elapsedSeconds}s] EVENT: ${log.type} - DETAILS: ${log.description}`;
@@ -1503,7 +1504,7 @@ Automated Integrity Alerts Hub`;
 // API: Sync student test attempts & perform AI cheating detection
 app.post("/api/sync", async (req, res) => {
   const { attempt } = req.body;
-  
+
   if (!attempt || !attempt.id || !attempt.examId) {
     return res.status(400).json({ error: "Missing exam attempt payload." });
   }
@@ -1528,7 +1529,7 @@ app.post("/api/sync", async (req, res) => {
 // API: Batch Sync student test attempts & perform AI cheating detection in bulk
 app.post("/api/sync/batch", async (req, res) => {
   const { attempts } = req.body;
-  
+
   if (!attempts || !Array.isArray(attempts)) {
     return res.status(400).json({ error: "Invalid payload: attempts must be a non-empty array." });
   }
@@ -1597,7 +1598,7 @@ app.post("/api/admin/batch-reanalyze", async (req, res) => {
     try {
       const attempt = synchronizedAttempts[idx];
       const reprocessed = await processSingleAttempt(attempt);
-      
+
       synchronizedAttempts[idx] = reprocessed;
       updatedAttempts.push(reprocessed);
     } catch (err: any) {
@@ -1761,12 +1762,12 @@ app.get("/api/attempts/completed", (req, res) => {
   if (!email || typeof email !== "string") {
     return res.status(400).json({ error: "Missing or invalid student email query parameter." });
   }
-  
+
   const studentAttempts = synchronizedAttempts
     .filter(a => a.studentEmail.toLowerCase() === email.trim().toLowerCase() && a.status === "completed");
-    
+
   const completedIds = studentAttempts.map(a => a.examId);
-  
+
   // Safe mapping to prevent leak of other students' answers
   const safeAttempts = studentAttempts.map(a => ({
     id: a.id,
@@ -1781,8 +1782,8 @@ app.get("/api/attempts/completed", (req, res) => {
     timeRemaining: a.timeRemaining,
     isSynchronized: a.isSynchronized
   }));
-    
-  res.json({ 
+
+  res.json({
     completedExamIds: completedIds,
     attempts: safeAttempts
   });
