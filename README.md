@@ -18,3 +18,4 @@ View your app in AI Studio: https://ai.studio/apps/c117d430-52e0-4a60-8d55-ad69c
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+LIVE LINK: https://offline-quiz-system.vercel.app/
