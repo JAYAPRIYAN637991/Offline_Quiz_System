@@ -4,5 +4,17 @@
     "email": "student@guardian.edu",
     "passwordHash": "Password123!",
     "createdAt": 1783405726816
+  },
+  {
+    "username": "candidate1",
+    "email": "candidate1@school.edu",
+    "passwordHash": "password",
+    "createdAt": 1783417849527
+  },
+  {
+    "username": "candidate2",
+    "email": "candidate2@school.edu",
+    "passwordHash": "password123",
+    "createdAt": 1783418199650
   }
 ]
