@@ -1,22 +1,17 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import crypto from "crypto";
-import mongoose from "mongoose";
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { QuestionBank } from './models/QuestionBank.js';
-import { Exam } from './models/Exam.js';
-import { ExamAttempt } from './models/ExamAttempt.js';
-import { CandidateUser, AdminUser } from './models/User.js';
-import { SentEmail } from './models/SentEmail.js';
-import { PortalSettings } from './models/PortalSettings.js';
-import { seedDatabase } from './seed.js';
+import { Exam, ExamAttempt, TamperEvent, CheatingAnalysis, Question, QuestionBank } from "../src/types";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -31,25 +26,603 @@ const ai = new GoogleGenAI({
   },
 });
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/guardianquiz";
+// In-memory server database for Question Banks
+const serverQuestionBanks: QuestionBank[] = [
+  {
+    id: "bank-cybersecurity",
+    name: "Cybersecurity & Cryptography Bank",
+    subject: "Computer Science",
+    topic: "Security",
+    createdAt: Date.now(),
+    questions: [
+      // Easy
+      {
+        id: "cyber-e1",
+        text: "What does HTTPS stand for in web browsing?",
+        options: [
+          "Hypertext Transfer Protocol Secure",
+          "High-speed Transmission Process System",
+          "Hyperlink Text Privacy Service",
+          "Host Transfer Protocol Site"
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Easy",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-e2",
+        text: "Which of the following is considered a secure password practice?",
+        options: [
+          "Using your birth year as the password",
+          "Reusing the same password across all websites",
+          "Using a combination of uppercase letters, lowercase letters, numbers, and special symbols",
+          "Writing your password on a sticky note attached to your monitor"
+        ],
+        correctOptionIndex: 2,
+        difficulty: "Easy",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-e3",
+        text: "What is the primary function of a network firewall?",
+        options: [
+          "To speed up local download rates",
+          "To monitor and filter incoming and outgoing network traffic based on security rules",
+          "To automatically backup personal files",
+          "To secure client email transmissions via decryption"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Easy",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      // Medium
+      {
+        id: "cyber-m1",
+        text: "Which of the following cryptographic standards uses a symmetric key algorithm?",
+        options: [
+          "RSA (Rivest-Shamir-Adleman)",
+          "AES (Advanced Encryption Standard)",
+          "ECC (Elliptic Curve Cryptography)",
+          "Diffie-Hellman Key Exchange"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Medium",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-m2",
+        text: "What security vulnerability does a SQL Injection directly target?",
+        options: [
+          "Lack of input sanitization in database query structures",
+          "Weak symmetric key sizes in transport level encryption",
+          "Inefficient garbage collection in client-side runtimes",
+          "Unauthorized DNS cache modifications on recursive servers"
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Medium",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-m3",
+        text: "What is the primary operational distinction between a computer worm and a typical computer virus?",
+        options: [
+          "A virus requires a host program to propagate, whereas a worm spreads independently across networks.",
+          "A worm infects only system hardware, while a virus is restricted to software code.",
+          "A virus encrypts entire filesystems, whereas worms solely log keystrokes.",
+          "A worm requires direct physical transfer via USB, while a virus propagates via web cookies."
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Medium",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      // Hard
+      {
+        id: "cyber-h1",
+        text: "In a Zero-Knowledge Proof (ZKP), what are the two main parties involved?",
+        options: [
+          "The Prover and the Verifier",
+          "The Cipher and the Decrypter",
+          "The Sender and the Receiver",
+          "The Client and the Host"
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Hard",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-h2",
+        text: "Which of the following is an example of a collision-resistant cryptographic hash function?",
+        options: [
+          "MD5",
+          "SHA-256",
+          "DES",
+          "ROT13"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Hard",
+        subject: "Computer Science",
+        topic: "Security"
+      },
+      {
+        id: "cyber-h3",
+        text: "What is the main advantage of Elliptic Curve Cryptography (ECC) over RSA?",
+        options: [
+          "ECC is completely immune to quantum computer attacks.",
+          "ECC offers equivalent security with much smaller key sizes, reducing overhead.",
+          "ECC requires no public key distribution.",
+          "ECC uses symmetric encryption for faster data streams."
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Hard",
+        subject: "Computer Science",
+        topic: "Security"
+      }
+    ]
+  },
+  {
+    id: "bank-climatic",
+    name: "Climatic Systems & Meteorology Bank",
+    subject: "Earth Science",
+    topic: "Climatology",
+    createdAt: Date.now(),
+    questions: [
+      // Easy
+      {
+        id: "climate-e1",
+        text: "Which atmospheric layer is closest to the Earth's surface and contains most weather phenomena?",
+        options: [
+          "Troposphere",
+          "Stratosphere",
+          "Mesosphere",
+          "Thermosphere"
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Easy",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-e2",
+        text: "What is the primary source of energy that drives the Earth's weather systems?",
+        options: [
+          "Geothermal heat from the Earth's core",
+          "Solar radiation from the Sun",
+          "Gravitational pull from the Moon",
+          "Friction from tectonic plate movement"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Easy",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-e3",
+        text: "Which of the following is a primary greenhouse gas naturally present in Earth's atmosphere?",
+        options: [
+          "Argon",
+          "Carbon Dioxide",
+          "Helium",
+          "Nitrogen"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Easy",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      // Medium
+      {
+        id: "climate-m1",
+        text: "The deflection of wind currents caused by the Earth's rotation is known as what?",
+        options: [
+          "The Bernoulli Effect",
+          "The Coriolis Effect",
+          "The Milankovitch Loop",
+          "The Doppler Shift"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Medium",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-m2",
+        text: "What ocean current serves as a primary driver of the North Atlantic drift, delivering warm equatorial water to western Europe?",
+        options: [
+          "The Humboldt Current",
+          "The Gulf Stream",
+          "The California Loop",
+          "The Kurushio Current"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Medium",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-m3",
+        text: "What atmospheric layer contains the ozone layer responsible for absorbing high-frequency ultraviolet light?",
+        options: [
+          "Troposphere",
+          "Stratosphere",
+          "Mesosphere",
+          "Thermosphere"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Medium",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      // Hard
+      {
+        id: "climate-h1",
+        text: "Which of the following compounds has the highest Global Warming Potential (GWP) per molecule over a 100-year timescale?",
+        options: [
+          "Carbon Dioxide (CO2)",
+          "Methane (CH4)",
+          "Sulfur Hexafluoride (SF6)",
+          "Nitrous Oxide (N2O)"
+        ],
+        correctOptionIndex: 2,
+        difficulty: "Hard",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-h2",
+        text: "How do Milankovitch cycles contribute to long-term geological climate alterations?",
+        options: [
+          "By changing volcanic particulate emission speeds",
+          "By inducing minor cyclical variations in the Earth's orbital shape, axial tilt, and precession direction",
+          "By modifying the rate of tectonic subduction near marine trenches",
+          "By shifting the salinity coefficient of global thermohaline conveyors directly"
+        ],
+        correctOptionIndex: 1,
+        difficulty: "Hard",
+        subject: "Earth Science",
+        topic: "Climatology"
+      },
+      {
+        id: "climate-h3",
+        text: "What term describes the feedback loop where melting Arctic ice reduces reflectivity, leading to more heat absorption and further melting?",
+        options: [
+          "The Ice-Albedo Feedback",
+          "The Greenhouse Acceleration Loop",
+          "The Radiative Forcing Deficit",
+          "The Cloud-Albedo Precession"
+        ],
+        correctOptionIndex: 0,
+        difficulty: "Hard",
+        subject: "Earth Science",
+        topic: "Climatology"
+      }
+    ]
+  }
+];
 
-mongoose.connect(MONGODB_URI)
-  .then(async () => {
-    console.log("[OK] Connected to MongoDB");
-    await seedDatabase();
-  })
-  .catch(err => console.error("MongoDB connection error:", err));
+// Exams stored securely on the server with correct answers included
+const serverExams: Exam[] = [
+  {
+    id: "cs-ethics-security",
+    title: "Computer Science Ethics & Cyber Security",
+    description: "An intensive test evaluating your understanding of encryption mechanics, digital handshakes, network threat prevention, and ethical hacking rules.",
+    timeLimit: 10, // 10 minutes
+    createdAt: Date.now(),
+    integrityHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    questions: [
+      {
+        id: "sec-q1",
+        text: "Which of the following cryptographic standards uses a symmetric key algorithm?",
+        options: [
+          "RSA (Rivest-Shamir-Adleman)",
+          "AES (Advanced Encryption Standard)",
+          "ECC (Elliptic Curve Cryptography)",
+          "Diffie-Hellman Key Exchange"
+        ],
+        correctOptionIndex: 1 // AES
+      },
+      {
+        id: "sec-q2",
+        text: "What is the primary operational distinction between a computer worm and a typical computer virus?",
+        options: [
+          "A virus requires a host program to propagate, whereas a worm spreads independently across networks.",
+          "A worm infects only system hardware, while a virus is restricted to software code.",
+          "A virus encrypts entire filesystems, whereas worms solely log keystrokes.",
+          "A worm requires direct physical transfer via USB, while a virus propagates via web cookies."
+        ],
+        correctOptionIndex: 0 // virus requires host, worm propagates independently
+      },
+      {
+        id: "sec-q3",
+        text: "In public-key cryptography, if Alice wants to send an encrypted message to Bob that only Bob can read, Alice must encrypt the message using:",
+        options: [
+          "Alice's private key",
+          "Alice's public key",
+          "Bob's public key",
+          "Bob's private key"
+        ],
+        correctOptionIndex: 2 // Bob's public key
+      },
+      {
+        id: "sec-q4",
+        text: "What security vulnerability does a SQL Injection directly target?",
+        options: [
+          "Lack of input sanitization in database query structures",
+          "Weak symmetric key sizes in transport level encryption",
+          "Inefficient garbage collection in client-side runtimes",
+          "Unauthorized DNS cache modifications on recursive servers"
+        ],
+        correctOptionIndex: 0 // Lack of input sanitization
+      },
+      {
+        id: "sec-q5",
+        text: "Under ethical hacking frameworks, what is the core purpose of a Pen-Test (Penetration Testing)?",
+        options: [
+          "To copy trade secrets to compete with local companies legally",
+          "To actively simulate cyberattacks to find and document vulnerabilities before malicious hackers do",
+          "To design custom firewalls for direct network sales",
+          "To audit corporate financial databases for regulatory tax filings"
+        ],
+        correctOptionIndex: 1 // Simulate attacks to find vulnerabilities
+      }
+    ]
+  },
+  {
+    id: "global-climatic-systems",
+    title: "Global Climatic Systems & Meteorology",
+    description: "Evaluates your understanding of tropospheric pressure loops, Coriolis force impacts, carbon reservoirs, and radiative forcing mechanisms.",
+    timeLimit: 12, // 12 minutes
+    createdAt: Date.now(),
+    integrityHash: "6c2bc6642f65a12282206aa0a010469b820cd156cf04a08fd15f606a25ba20cf",
+    questions: [
+      {
+        id: "cli-q1",
+        text: "The deflection of wind currents caused by the Earth's rotational speed is known as what?",
+        options: [
+          "The Bernoulli Effect",
+          "The Doppler Shift",
+          "The Coriolis Effect",
+          "The Milankovitch Loop"
+        ],
+        correctOptionIndex: 2 // Coriolis
+      },
+      {
+        id: "cli-q2",
+        text: "Which of the following compounds is estimated to have the highest Global Warming Potential (GWP) per molecule over a 100-year timescale?",
+        options: [
+          "Carbon Dioxide (CO2)",
+          "Methane (CH4)",
+          "Sulfur Hexafluoride (SF6)",
+          "Water Vapor (H2O)"
+        ],
+        correctOptionIndex: 2 // SF6
+      },
+      {
+        id: "cli-q3",
+        text: "What atmospheric layer contains the ozone layer responsible for absorbing high-frequency ultraviolet light?",
+        options: [
+          "Troposphere",
+          "Stratosphere",
+          "Mesosphere",
+          "Thermosphere"
+        ],
+        correctOptionIndex: 1 // Stratosphere
+      },
+      {
+        id: "cli-q4",
+        text: "What ocean current serves as a primary driver of the North Atlantic drift, delivering warm equatorial water to western Europe?",
+        options: [
+          "The Humboldt Current",
+          "The Gulf Stream",
+          "The Kurushio Current",
+          "The California Loop"
+        ],
+        correctOptionIndex: 1 // Gulf Stream
+      },
+      {
+        id: "cli-q5",
+        text: "How do Milankovitch cycles contribute to long-term geological climate alterations?",
+        options: [
+          "By changing volcanic particulate emission speeds",
+          "By inducing minor cyclical variations in the Earth's orbital shape, axial tilt, and precession direction",
+          "By modifying the rate of tectonic subduction near marine trenches",
+          "By shifting the salinity coefficient of global thermohaline conveyors directly"
+        ],
+        correctOptionIndex: 1 // earth orbital variations
+      }
+    ]
+  },
+  {
+    id: "adaptive-cybersec",
+    title: "[Adaptive] Cybersecurity Engineering Quiz",
+    description: "An adaptive quiz that dynamically changes its difficulty based on your performance. Answering correctly serves harder questions, while answering incorrectly falls back to easy/medium questions.",
+    timeLimit: 8,
+    createdAt: Date.now(),
+    isAdaptive: true,
+    questionBankId: "bank-cybersecurity",
+    totalQuestionsCount: 5,
+    integrityHash: "adaptive-hash-cybersec-2026",
+    questions: [],
+    questionPool: serverQuestionBanks[0].questions
+  },
+  {
+    id: "adaptive-climate",
+    title: "[Adaptive] Earth Climate Systems Quiz",
+    description: "A dynamic, performance-adapted evaluation of meteorology, Coriolis forces, and long-term orbital cycles.",
+    timeLimit: 8,
+    createdAt: Date.now(),
+    isAdaptive: true,
+    questionBankId: "bank-climatic",
+    totalQuestionsCount: 5,
+    integrityHash: "adaptive-hash-climatic-2026",
+    questions: [],
+    questionPool: serverQuestionBanks[1].questions
+  }
+];
 
-import { AdminNotification } from './models/AdminNotification.js';
+// Submissions store
+const DATA_DIR = process.env.VERCEL ? "/tmp" : process.cwd();
+const ATTEMPTS_FILE = path.join(DATA_DIR, "synchronized_attempts.json");
+const CANDIDATES_FILE = path.join(DATA_DIR, "registered_candidates.json");
+
+// Relational User & Notification Models for authentication and auditing
+interface CandidateUser {
+  username: string;
+  email: string;
+  passwordHash: string;
+  createdAt: number;
+}
+
+interface AdminUser {
+  username: string;
+  passwordHash: string;
+  createdAt: number;
+}
+
+interface AdminNotification {
+  id: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+}
+
+let synchronizedAttempts: ExamAttempt[] = [];
+try {
+  if (fs.existsSync(ATTEMPTS_FILE)) {
+    synchronizedAttempts = JSON.parse(fs.readFileSync(ATTEMPTS_FILE, "utf-8"));
+  } else {
+    fs.writeFileSync(ATTEMPTS_FILE, JSON.stringify([], null, 2), "utf-8");
+  }
+} catch (e) {
+  console.error("Could not load synchronized attempts", e);
+}
+
+function saveAttempts() {
+  try {
+    fs.writeFileSync(ATTEMPTS_FILE, JSON.stringify(synchronizedAttempts, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Could not save synchronized attempts", e);
+  }
+}
+
+const EMAILS_FILE = path.join(DATA_DIR, "sent_emails.json");
+
+interface SentEmail {
+  id: string;
+  timestamp: number;
+  recipient: string;
+  subject: string;
+  body: string;
+  attemptId: string;
+  studentName: string;
+  studentEmail: string;
+  riskLevel: string;
+  confidenceScore: number;
+}
+
+let sentEmails: SentEmail[] = [];
+try {
+  if (fs.existsSync(EMAILS_FILE)) {
+    sentEmails = JSON.parse(fs.readFileSync(EMAILS_FILE, "utf-8"));
+  } else {
+    fs.writeFileSync(EMAILS_FILE, JSON.stringify([], null, 2), "utf-8");
+  }
+} catch (e) {
+  console.error("Could not load sent emails list", e);
+}
+
+function saveSentEmails() {
+  try {
+    fs.writeFileSync(EMAILS_FILE, JSON.stringify(sentEmails, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Could not save sent emails", e);
+  }
+}
+
+// Pre-seeded database values
+let registeredCandidates: CandidateUser[] = [
+  {
+    username: "student",
+    email: "student@guardian.edu",
+    passwordHash: "Password123!",
+    createdAt: Date.now()
+  }
+];
+
+try {
+  if (fs.existsSync(CANDIDATES_FILE)) {
+    registeredCandidates = JSON.parse(fs.readFileSync(CANDIDATES_FILE, "utf-8"));
+  } else {
+    fs.writeFileSync(CANDIDATES_FILE, JSON.stringify(registeredCandidates, null, 2), "utf-8");
+  }
+} catch (e) {
+  console.error("Could not load registered candidates", e);
+}
+
+function saveCandidates() {
+  try {
+    fs.writeFileSync(CANDIDATES_FILE, JSON.stringify(registeredCandidates, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Could not save registered candidates", e);
+  }
+}
+
+// Portal Settings Store
+const SETTINGS_FILE = path.join(DATA_DIR, "portal_settings.json");
+interface PortalSettings {
+  candidatePortalEnabled: boolean;
+}
+let portalSettings: PortalSettings = {
+  candidatePortalEnabled: true
+};
+try {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    portalSettings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
+  } else {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(portalSettings, null, 2), "utf-8");
+  }
+} catch (e) {
+  console.error("Could not load portal settings", e);
+}
+
+function savePortalSettings() {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(portalSettings, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Could not save portal settings", e);
+  }
+}
+
+const registeredAdmins: AdminUser[] = [
+  {
+    username: "admin",
+    passwordHash: "AdminPassword123!",
+    createdAt: Date.now()
+  }
+];
+
+const adminNotifications: AdminNotification[] = [
+  {
+    id: "notif-init",
+    message: "System initialized. Proctor firewall and offline-integrity rules activated.",
+    timestamp: Date.now(),
+    read: false
+  }
+];
 
 // Public Settings API
-app.get("/api/portal-settings", async (req, res) => {
-  const settings = await PortalSettings.findOne({ id: 'default' });
-  res.json(settings || { candidatePortalEnabled: true });
+app.get("/api/portal-settings", (req, res) => {
+  res.json(portalSettings);
 });
 
 // Admin: Toggle/Update Settings API
-app.post("/api/admin/portal-settings", async (req, res) => {
+app.post("/api/admin/portal-settings", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can modify portal settings." });
@@ -60,38 +633,35 @@ app.post("/api/admin/portal-settings", async (req, res) => {
     return res.status(400).json({ error: "Invalid parameters. 'candidatePortalEnabled' (boolean) is required." });
   }
 
-  const settings = await PortalSettings.findOneAndUpdate(
-    { id: 'default' },
-    { candidatePortalEnabled },
-    { new: true, upsert: true }
-  );
+  portalSettings.candidatePortalEnabled = candidatePortalEnabled;
+  savePortalSettings();
 
   // Log notification for admin action
-  await AdminNotification.create({
+  const newNotification: AdminNotification = {
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Administrative action: Candidate Portal has been ${candidatePortalEnabled ? "ENABLED" : "DISABLED"}.`,
     timestamp: Date.now(),
     read: false
-  });
+  };
+  adminNotifications.unshift(newNotification);
 
   res.json({
     success: true,
     message: `Candidate Portal successfully ${candidatePortalEnabled ? "enabled" : "disabled"}.`,
-    settings
+    settings: portalSettings
   });
 });
 
 // Auth Endpoints: Candidate Portal
-app.post("/api/auth/candidate/register", async (req, res) => {
-  const portalSettings = await PortalSettings.findOne({ id: 'default' });
-  if (!portalSettings?.candidatePortalEnabled) {
+app.post("/api/auth/candidate/register", (req, res) => {
+  if (!portalSettings.candidatePortalEnabled) {
     return res.status(403).json({ error: "Candidate Portal registration is currently disabled by Proctor Administration." });
   }
 
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
-    return res.status(400).json({ error: "Username, email, and password are required." });
+    return res.status(400).json({ error: "Missing required fields: Username, Email, and Password must be provided." });
   }
 
   const cleanUsername = username.trim();
@@ -102,12 +672,9 @@ app.post("/api/auth/candidate/register", async (req, res) => {
     return res.status(403).json({ error: "Candidates are strictly forbidden from creating administrative usernames or registering as administrators." });
   }
 
-  const exists = await CandidateUser.findOne({
-    $or: [
-      { username: new RegExp(`^${cleanUsername}$`, 'i') },
-      { email: cleanEmail }
-    ]
-  });
+  const exists = registeredCandidates.some(
+    c => c.username.toLowerCase() === cleanUsername.toLowerCase() || c.email === cleanEmail
+  );
 
   if (exists) {
     return res.status(400).json({ error: "A candidate account with this username or email already exists." });
@@ -118,20 +685,24 @@ app.post("/api/auth/candidate/register", async (req, res) => {
     return res.status(400).json({ error: "Candidate passwords must be at least 6 characters in length." });
   }
 
-  await CandidateUser.create({
+  const newCandidate: CandidateUser = {
     username: cleanUsername,
     email: cleanEmail,
     passwordHash: password, // simple hash simulated
     createdAt: Date.now()
-  });
+  };
+
+  registeredCandidates.push(newCandidate);
+  saveCandidates();
 
   // Trigger admin notification immediately!
-  await AdminNotification.create({
+  const newNotification: AdminNotification = {
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Candidate account registered successfully: Username "${cleanUsername}" (${cleanEmail}).`,
     timestamp: Date.now(),
     read: false
-  });
+  };
+  adminNotifications.unshift(newNotification);
 
   res.status(201).json({
     success: true,
@@ -140,9 +711,8 @@ app.post("/api/auth/candidate/register", async (req, res) => {
   });
 });
 
-app.post("/api/auth/candidate/login", async (req, res) => {
-  const portalSettings = await PortalSettings.findOne({ id: 'default' });
-  if (!portalSettings?.candidatePortalEnabled) {
+app.post("/api/auth/candidate/login", (req, res) => {
+  if (!portalSettings.candidatePortalEnabled) {
     return res.status(403).json({ error: "Candidate Portal is currently disabled by Proctor Administration. Please contact your proctor." });
   }
 
@@ -153,13 +723,9 @@ app.post("/api/auth/candidate/login", async (req, res) => {
   }
 
   const cleanQuery = usernameOrEmail.trim().toLowerCase();
-  
-  const user = await CandidateUser.findOne({
-    $or: [
-      { username: new RegExp(`^${cleanQuery}$`, 'i') },
-      { email: new RegExp(`^${cleanQuery}$`, 'i') }
-    ]
-  });
+  const user = registeredCandidates.find(
+    c => c.username.toLowerCase() === cleanQuery || c.email.toLowerCase() === cleanQuery
+  );
 
   if (!user || user.passwordHash !== password) {
     return res.status(401).json({ error: "Access Denied. Invalid candidate credentials." });
@@ -176,7 +742,7 @@ app.post("/api/auth/candidate/login", async (req, res) => {
 });
 
 // Auth Endpoints: Admin / Proctor Registration
-app.post("/api/auth/admin/register", async (req, res) => {
+app.post("/api/auth/admin/register", (req, res) => {
   const { username, password, authCode } = req.body;
 
   if (!username || !password) {
@@ -235,19 +801,21 @@ app.post("/api/auth/admin/register", async (req, res) => {
   }
 
   // Check unique admin
-  const exists = await AdminUser.findOne({ username: new RegExp(`^${cleanUsername}$`, 'i') });
+  const exists = registeredAdmins.some(a => a.username.toLowerCase() === cleanUsername.toLowerCase());
   if (exists) {
     return res.status(400).json({ error: "An administrator with this username is already registered." });
   }
 
-  await AdminUser.create({
+  const newAdmin: AdminUser = {
     username: cleanUsername,
     passwordHash: password,
     createdAt: Date.now()
-  });
+  };
+
+  registeredAdmins.push(newAdmin);
 
   // Notify current admins about the new admin creation
-  await AdminNotification.create({
+  adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Security Event: New authorized administrator account created: "${cleanUsername}".`,
     timestamp: Date.now(),
@@ -261,15 +829,14 @@ app.post("/api/auth/admin/register", async (req, res) => {
   });
 });
 
-app.get("/api/auth/admin/status", async (req, res) => {
-  const count = await AdminUser.countDocuments();
+app.get("/api/auth/admin/status", (req, res) => {
   res.json({
-    hasCustomAdmin: count > 1,
-    count
+    hasCustomAdmin: registeredAdmins.length > 1,
+    count: registeredAdmins.length
   });
 });
 
-app.post("/api/auth/admin/login", async (req, res) => {
+app.post("/api/auth/admin/login", (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -277,7 +844,7 @@ app.post("/api/auth/admin/login", async (req, res) => {
   }
 
   const cleanUser = username.trim();
-  const admin = await AdminUser.findOne({ username: new RegExp(`^${cleanUser}$`, 'i') });
+  const admin = registeredAdmins.find(a => a.username.toLowerCase() === cleanUser.toLowerCase());
 
   if (!admin || (admin.passwordHash !== password && !(admin.username === "admin" && password === "admin2026"))) {
     return res.status(401).json({ error: "Access Denied. Invalid proctor credentials." });
@@ -292,7 +859,7 @@ app.post("/api/auth/admin/login", async (req, res) => {
   });
 });
 
-app.post("/api/auth/admin/update", async (req, res) => {
+app.post("/api/auth/admin/update", (req, res) => {
   const { oldUsername, newUsername, newPassword } = req.body;
 
   if (!oldUsername || !newUsername || !newPassword) {
@@ -303,14 +870,14 @@ app.post("/api/auth/admin/update", async (req, res) => {
   const cleanNew = newUsername.trim();
 
   // Find the admin
-  const admin = await AdminUser.findOne({ username: new RegExp(`^${cleanOld}$`, 'i') });
-  if (!admin) {
+  const adminIndex = registeredAdmins.findIndex(a => a.username.toLowerCase() === cleanOld);
+  if (adminIndex === -1) {
     return res.status(404).json({ error: "Administrator account not found." });
   }
 
   // Check if new username is already taken by a different admin
-  const isTaken = await AdminUser.findOne({ username: new RegExp(`^${cleanNew}$`, 'i') });
-  if (isTaken && isTaken.id !== admin.id) {
+  const isTaken = registeredAdmins.some((a, idx) => idx !== adminIndex && a.username.toLowerCase() === cleanNew.toLowerCase());
+  if (isTaken) {
     return res.status(400).json({ error: "The new username is already taken by another administrator." });
   }
 
@@ -350,18 +917,17 @@ app.post("/api/auth/admin/update", async (req, res) => {
   if (validationErrors.length > 0) {
     return res.status(400).json({
       error: "Security Standards Violation. New credentials fail to meet requirements:\n\n" +
-        validationErrors.map((err) => `• ${err}`).join("\n")
+        validationErrors.map((err, idx) => `• ${err}`).join("\n")
     });
   }
 
   // Update
-  const oldDisplayName = admin.username;
-  admin.username = cleanNew;
-  admin.passwordHash = newPassword;
-  await admin.save();
+  const oldDisplayName = registeredAdmins[adminIndex].username;
+  registeredAdmins[adminIndex].username = cleanNew;
+  registeredAdmins[adminIndex].passwordHash = newPassword;
 
   // Push notification of security change
-  await AdminNotification.create({
+  adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Security Event: Credentials updated for administrator account. Old username: "${oldDisplayName}", new username: "${cleanNew}".`,
     timestamp: Date.now(),
@@ -379,20 +945,19 @@ app.post("/api/auth/admin/update", async (req, res) => {
 });
 
 // Proctor notifications management
-app.get("/api/admin/notifications", async (req, res) => {
-  const notifications = await AdminNotification.find().sort({ timestamp: -1 }).lean();
-  res.json(notifications);
+app.get("/api/admin/notifications", (req, res) => {
+  res.json(adminNotifications);
 });
 
-app.post("/api/admin/notifications/read", async (req, res) => {
+app.post("/api/admin/notifications/read", (req, res) => {
   const { id, all } = req.body;
   if (all) {
-    await AdminNotification.updateMany({}, { read: true });
+    adminNotifications.forEach(n => n.read = true);
   } else if (id) {
-    await AdminNotification.updateOne({ id }, { read: true });
+    const found = adminNotifications.find(n => n.id === id);
+    if (found) found.read = true;
   }
-  const notifications = await AdminNotification.find().sort({ timestamp: -1 }).lean();
-  res.json({ success: true, notifications });
+  res.json({ success: true, notifications: adminNotifications });
 });
 
 // Helper to calculate SHA-256 hash in CJS/ESM
@@ -401,41 +966,40 @@ function getSHA256Hash(data: string): string {
 }
 
 // API: Get List of Exams (For Students - correct answer keys strictly omitted for safety)
-app.get("/api/exams", async (req, res) => {
+app.get("/api/exams", (req, res) => {
   const userRole = req.headers["x-user-role"] || req.query.role;
   const userEmail = req.headers["x-user-email"] || req.query.email;
 
-  let filteredExams: any[] = [];
-
-  if (userRole !== "admin") {
-    // Candidates can ONLY see exams explicitly assigned to them AND started by the admin
-    if (userEmail && typeof userEmail === "string") {
-      const cleanEmail = userEmail.trim().toLowerCase();
-      filteredExams = await Exam.find({
-        assignedCandidateEmail: new RegExp(`^${cleanEmail}$`, 'i'),
-        isStarted: true
-      }).lean();
-    }
-  } else {
-    filteredExams = await Exam.find().lean();
-  }
-
-  // Ensure default fields
-  filteredExams.forEach(exam => {
+  // Initialize fields on exams if they don't exist
+  serverExams.forEach(exam => {
     if (exam.assignedCandidateEmail === undefined) exam.assignedCandidateEmail = null;
     if (exam.isUnlocked === undefined) exam.isUnlocked = false;
     if (exam.isStarted === undefined) exam.isStarted = false;
     if (exam.passkey === undefined) exam.passkey = "UNLOCK2026";
   });
 
+  let filteredExams = serverExams;
+
+  if (userRole !== "admin") {
+    // Candidates can ONLY see exams explicitly assigned to them AND started by the admin
+    if (!userEmail || typeof userEmail !== "string") {
+      filteredExams = [];
+    } else {
+      const cleanEmail = userEmail.trim().toLowerCase();
+      filteredExams = serverExams.filter(exam =>
+        exam.assignedCandidateEmail && exam.assignedCandidateEmail.trim().toLowerCase() === cleanEmail && exam.isStarted === true
+      );
+    }
+  }
+
   const safeExams = filteredExams.map(exam => {
-    const safeQuestions = (exam.questions || []).map((q: any) => {
+    const safeQuestions = exam.questions.map(q => {
       const { correctOptionIndex, ...safeQuestion } = q;
       return safeQuestion;
     });
 
     const safePool = exam.questionPool
-      ? exam.questionPool.map((q: any) => {
+      ? exam.questionPool.map(q => {
         const { correctOptionIndex, ...safeQuestion } = q;
         return {
           ...safeQuestion,
@@ -456,7 +1020,7 @@ app.get("/api/exams", async (req, res) => {
 });
 
 // API: Assign an Exam (For Admins)
-app.post("/api/exams/:id/assign", async (req, res) => {
+app.post("/api/exams/:id/assign", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can assign exams." });
@@ -465,19 +1029,17 @@ app.post("/api/exams/:id/assign", async (req, res) => {
   const { id } = req.params;
   const { email } = req.body;
 
-  const exam = await Exam.findOne({ id });
+  const exam = serverExams.find(e => e.id === id);
   if (!exam) {
     return res.status(404).json({ error: "Exam not found." });
   }
 
   exam.assignedCandidateEmail = email || null;
-  await exam.save();
-  
   res.json({ success: true, exam });
 });
 
 // API: Unlock an Exam using a passkey (For Admins)
-app.post("/api/exams/:id/unlock", async (req, res) => {
+app.post("/api/exams/:id/unlock", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can unlock exams." });
@@ -486,7 +1048,7 @@ app.post("/api/exams/:id/unlock", async (req, res) => {
   const { id } = req.params;
   const { passkey } = req.body;
 
-  const exam = await Exam.findOne({ id });
+  const exam = serverExams.find(e => e.id === id);
   if (!exam) {
     return res.status(404).json({ error: "Exam not found." });
   }
@@ -497,20 +1059,18 @@ app.post("/api/exams/:id/unlock", async (req, res) => {
   }
 
   exam.isUnlocked = true;
-  await exam.save();
-  
   res.json({ success: true, exam });
 });
 
 // API: Start an Exam (For Admins - makes it visible to the assigned candidate)
-app.post("/api/exams/:id/start", async (req, res) => {
+app.post("/api/exams/:id/start", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can start exams." });
   }
 
   const { id } = req.params;
-  const exam = await Exam.findOne({ id });
+  const exam = serverExams.find(e => e.id === id);
   if (!exam) {
     return res.status(404).json({ error: "Exam not found." });
   }
@@ -520,20 +1080,18 @@ app.post("/api/exams/:id/start", async (req, res) => {
   }
 
   exam.isStarted = true;
-  await exam.save();
-  
   res.json({ success: true, exam });
 });
 
 // API: Bulk Start / Publish an Exam for ALL Registered Candidates with one button
-app.post("/api/exams/:id/start-all", async (req, res) => {
+app.post("/api/exams/:id/start-all", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can bulk start exams." });
   }
 
   const { id } = req.params;
-  const baseExam = await Exam.findOne({ id });
+  const baseExam = serverExams.find(e => e.id === id);
   if (!baseExam) {
     return res.status(404).json({ error: "Exam template not found." });
   }
@@ -541,52 +1099,49 @@ app.post("/api/exams/:id/start-all", async (req, res) => {
   // Auto-unlock and auto-start the base template too
   baseExam.isUnlocked = true;
   baseExam.isStarted = true;
-  await baseExam.save();
 
-  const candidates = await CandidateUser.find().lean();
-  if (candidates.length === 0) {
+  if (registeredCandidates.length === 0) {
     return res.status(400).json({ error: "No candidates are registered in the portal yet." });
   }
 
   let createdCount = 0;
   let updatedCount = 0;
 
-  for (const candidate of candidates) {
+  registeredCandidates.forEach(candidate => {
     const cleanEmail = candidate.email.trim().toLowerCase();
 
     // Check if there's already an exam copy assigned to this candidate
-    let candidateExam = await Exam.findOne({
-      assignedCandidateEmail: new RegExp(`^${cleanEmail}$`, 'i'),
-      $or: [
-        { parentExamId: baseExam.id },
-        { title: baseExam.title }
-      ]
-    });
+    let candidateExam = serverExams.find(e =>
+      e.assignedCandidateEmail && e.assignedCandidateEmail.trim().toLowerCase() === cleanEmail &&
+      (e.parentExamId === baseExam.id || e.title === baseExam.title)
+    );
 
     if (candidateExam) {
+      // Exist, unlock and start it
       candidateExam.isUnlocked = true;
       candidateExam.isStarted = true;
-      await candidateExam.save();
       updatedCount++;
     } else {
       // Clone the exam for the candidate
-      await Exam.create({
-        ...baseExam.toObject(),
-        _id: undefined,
+      const clonedExam: Exam = {
+        ...baseExam,
         id: "exam-" + Math.random().toString(36).substr(2, 9),
         assignedCandidateEmail: cleanEmail,
         isUnlocked: true,
         isStarted: true,
         parentExamId: baseExam.id,
-        createdAt: Date.now()
-      });
+        createdAt: Date.now(),
+        questions: baseExam.questions.map(q => ({ ...q })),
+        questionPool: baseExam.questionPool ? baseExam.questionPool.map(q => ({ ...q })) : undefined
+      };
+      serverExams.push(clonedExam);
       createdCount++;
     }
-  }
+  });
 
-  await AdminNotification.create({
+  adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
-    message: `Administrative Bulk Action: Exam "${baseExam.title}" is now unlocked and started for all ${candidates.length} registered candidates.`,
+    message: `Administrative Bulk Action: Exam "${baseExam.title}" is now unlocked and started for all ${registeredCandidates.length} registered candidates.`,
     timestamp: Date.now(),
     read: false
   });
@@ -594,20 +1149,20 @@ app.post("/api/exams/:id/start-all", async (req, res) => {
   res.json({
     success: true,
     message: `Exam "${baseExam.title}" is now live for all registered candidates.`,
-    totalCandidates: candidates.length,
+    totalCandidates: registeredCandidates.length,
     clonedExamsCreated: createdCount,
     existingExamsUpdated: updatedCount
   });
 });
 
 // API: Create new Exam (For Admins)
-app.post("/api/exams", async (req, res) => {
+app.post("/api/exams", (req, res) => {
   const { title, description, timeLimit, questions, requireScreenCapture, assignedCandidateEmail, passkey } = req.body;
   if (!title || !questions || questions.length === 0) {
     return res.status(400).json({ error: "Exam must include a title and at least one question." });
   }
 
-  const newExam = await Exam.create({
+  const newExam: Exam = {
     id: "exam-" + Math.random().toString(36).substr(2, 9),
     title,
     description: description || "",
@@ -625,23 +1180,23 @@ app.post("/api/exams", async (req, res) => {
       options: q.options,
       correctOptionIndex: Number(q.correctOptionIndex) || 0
     }))
-  });
+  };
 
+  serverExams.push(newExam);
   res.status(201).json(newExam);
 });
 
 // API: Get Question Banks (For Admins)
-app.get("/api/question-banks", async (req, res) => {
+app.get("/api/question-banks", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can access raw question banks." });
   }
-  const banks = await QuestionBank.find().lean();
-  res.json(banks);
+  res.json(serverQuestionBanks);
 });
 
 // API: Upload Question Bank (For Admins)
-app.post("/api/question-banks", async (req, res) => {
+app.post("/api/question-banks", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can upload question banks." });
@@ -652,7 +1207,7 @@ app.post("/api/question-banks", async (req, res) => {
     return res.status(400).json({ error: "Name, subject, and an array of questions are required." });
   }
 
-  const newBank = await QuestionBank.create({
+  const newBank: QuestionBank = {
     id: "bank-" + Math.random().toString(36).substr(2, 9),
     name,
     subject,
@@ -667,9 +1222,11 @@ app.post("/api/question-banks", async (req, res) => {
       subject,
       topic: topic || ""
     }))
-  });
+  };
 
-  await AdminNotification.create({
+  serverQuestionBanks.push(newBank);
+
+  adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Question Bank uploaded: "${name}" (${questions.length} questions).`,
     timestamp: Date.now(),
@@ -680,7 +1237,7 @@ app.post("/api/question-banks", async (req, res) => {
 });
 
 // API: Create Adaptive Quiz (For Admins)
-app.post("/api/exams/adaptive", async (req, res) => {
+app.post("/api/exams/adaptive", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can create adaptive quizzes." });
@@ -691,12 +1248,12 @@ app.post("/api/exams/adaptive", async (req, res) => {
     return res.status(400).json({ error: "Title and Question Bank selection are required." });
   }
 
-  const selectedBank = await QuestionBank.findOne({ id: questionBankId });
+  const selectedBank = serverQuestionBanks.find(b => b.id === questionBankId);
   if (!selectedBank) {
     return res.status(404).json({ error: "Selected Question Bank not found." });
   }
 
-  const newExam = await Exam.create({
+  const newExam: Exam = {
     id: "exam-" + Math.random().toString(36).substr(2, 9),
     title,
     description: description || "",
@@ -713,9 +1270,11 @@ app.post("/api/exams/adaptive", async (req, res) => {
     isUnlocked: false,
     isStarted: false,
     passkey: passkey || "UNLOCK2026"
-  });
+  };
 
-  await AdminNotification.create({
+  serverExams.push(newExam);
+
+  adminNotifications.unshift({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
     message: `Adaptive Quiz created: "${title}" from bank "${selectedBank.name}".`,
     timestamp: Date.now(),
@@ -726,8 +1285,8 @@ app.post("/api/exams/adaptive", async (req, res) => {
 });
 
 // Helper: Process single candidate attempt with server-side grading and AI integrity evaluation
-async function processSingleAttempt(attempt: any) {
-  const originalExam = await Exam.findOne({ id: attempt.examId }).lean();
+async function processSingleAttempt(attempt: any): Promise<ExamAttempt> {
+  const originalExam = serverExams.find(e => e.id === attempt.examId);
   if (!originalExam) {
     throw new Error(`Associated exam ID "${attempt.examId}" was not found on the server.`);
   }
@@ -737,7 +1296,7 @@ async function processSingleAttempt(attempt: any) {
   const pool = originalExam.isAdaptive ? originalExam.questionPool : originalExam.questions;
   const questionsToGrade = pool || [];
 
-  questionsToGrade.forEach((q: any) => {
+  questionsToGrade.forEach(q => {
     const studentAnswer = attempt.answers[q.id];
     if (studentAnswer !== undefined && studentAnswer === q.correctOptionIndex) {
       correctCount++;
@@ -756,7 +1315,7 @@ async function processSingleAttempt(attempt: any) {
   const durationUsed = originalExam.timeLimit * 60 - attempt.timeRemaining;
   const logsCount = attempt.tamperLogs?.length || 0;
 
-  const formattedLogs = (attempt.tamperLogs || []).map((log: any) => {
+  const formattedLogs = (attempt.tamperLogs || []).map((log: TamperEvent) => {
     const elapsedSeconds = Math.round((log.timestamp - attempt.startTime) / 1000);
     return `[T+${elapsedSeconds}s] EVENT: ${log.type} - DETAILS: ${log.description}`;
   }).join("\n");
@@ -773,10 +1332,10 @@ async function processSingleAttempt(attempt: any) {
     securityLogs: formattedLogs || "None (Fully fullscreen and locked in during exam)"
   };
 
-  let cheatingAnalysis = {
+  let cheatingAnalysis: CheatingAnalysis = {
     riskLevel: "Low",
     confidenceScore: 100,
-    flaggedPatterns: [] as string[],
+    flaggedPatterns: [],
     explanation: "Standard safe browser interaction profile.",
     verdict: "Clear"
   };
@@ -864,7 +1423,7 @@ async function processSingleAttempt(attempt: any) {
   }
 
   // Final processed object
-  const gradedAttempt = {
+  const gradedAttempt: ExamAttempt = {
     ...attempt,
     status: "completed",
     score: finalScore,
@@ -916,7 +1475,7 @@ An automated audit record has been saved. Please log in immediately to the Secur
 Guardian Security Systems Inc.
 Automated Integrity Alerts Hub`;
 
-    await SentEmail.create({
+    const newEmail: SentEmail = {
       id: "email-" + Math.random().toString(36).substr(2, 9),
       timestamp: Date.now(),
       recipient,
@@ -927,10 +1486,13 @@ Automated Integrity Alerts Hub`;
       studentEmail: attempt.studentEmail,
       riskLevel: "High",
       confidenceScore: cheatingAnalysis.confidenceScore
-    });
+    };
+
+    sentEmails.unshift(newEmail);
+    saveSentEmails();
 
     // Push security notification to dashboard
-    await AdminNotification.create({
+    adminNotifications.unshift({
       id: "notif-" + Math.random().toString(36).substr(2, 9),
       message: `[Email Dispatched] Automated alert dispatched to "${recipient}" for candidate "${attempt.studentName}" due to High Fraud Risk.`,
       timestamp: Date.now(),
@@ -950,15 +1512,16 @@ app.post("/api/sync", async (req, res) => {
   }
 
   // Check if attempt is already synchronized
-  const existing = await ExamAttempt.findOne({ id: attempt.id });
+  const existing = synchronizedAttempts.find(a => a.id === attempt.id);
   if (existing) {
     return res.json({ success: true, alreadySynced: true, attempt: existing });
   }
 
   try {
     const gradedAttempt = await processSingleAttempt(attempt);
-    const savedAttempt = await ExamAttempt.create(gradedAttempt);
-    res.json({ success: true, attempt: savedAttempt });
+    synchronizedAttempts.push(gradedAttempt);
+    saveAttempts();
+    res.json({ success: true, attempt: gradedAttempt });
   } catch (err: any) {
     console.error("Synchronization pipeline failed:", err);
     res.status(500).json({ error: err.message || "Failed to sync attempt." });
@@ -973,8 +1536,8 @@ app.post("/api/sync/batch", async (req, res) => {
     return res.status(400).json({ error: "Invalid payload: attempts must be a non-empty array." });
   }
 
-  const processed = [];
-  const skipped = [];
+  const processed: ExamAttempt[] = [];
+  const skipped: ExamAttempt[] = [];
   const errors: string[] = [];
 
   for (const attempt of attempts) {
@@ -983,7 +1546,7 @@ app.post("/api/sync/batch", async (req, res) => {
       continue;
     }
 
-    const existing = await ExamAttempt.findOne({ id: attempt.id });
+    const existing = synchronizedAttempts.find(a => a.id === attempt.id);
     if (existing) {
       skipped.push(existing);
       continue;
@@ -991,11 +1554,15 @@ app.post("/api/sync/batch", async (req, res) => {
 
     try {
       const graded = await processSingleAttempt(attempt);
-      const saved = await ExamAttempt.create(graded);
-      processed.push(saved);
+      synchronizedAttempts.push(graded);
+      processed.push(graded);
     } catch (err: any) {
       errors.push(`Failed to sync attempt ${attempt.id}: ${err.message}`);
     }
+  }
+
+  if (processed.length > 0) {
+    saveAttempts();
   }
 
   res.json({
@@ -1020,19 +1587,21 @@ app.post("/api/admin/batch-reanalyze", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid attemptIds array." });
   }
 
-  const updatedAttempts = [];
+  const updatedAttempts: ExamAttempt[] = [];
   const errors: string[] = [];
 
   for (const id of attemptIds) {
-    const attempt = await ExamAttempt.findOne({ id }).lean();
-    if (!attempt) {
+    const idx = synchronizedAttempts.findIndex(a => a.id === id);
+    if (idx === -1) {
       errors.push(`Attempt ID ${id} not found in synchronized database.`);
       continue;
     }
 
     try {
+      const attempt = synchronizedAttempts[idx];
       const reprocessed = await processSingleAttempt(attempt);
-      await ExamAttempt.updateOne({ id }, reprocessed);
+
+      synchronizedAttempts[idx] = reprocessed;
       updatedAttempts.push(reprocessed);
     } catch (err: any) {
       errors.push(`Failed to re-analyze attempt ID ${id}: ${err.message}`);
@@ -1040,7 +1609,8 @@ app.post("/api/admin/batch-reanalyze", async (req, res) => {
   }
 
   if (updatedAttempts.length > 0) {
-    await AdminNotification.create({
+    saveAttempts();
+    adminNotifications.unshift({
       id: "notif-" + Math.random().toString(36).substr(2, 9),
       message: `Batch re-analysis completed: ${updatedAttempts.length} candidate attempts were re-analyzed via Gemini AI.`,
       timestamp: Date.now(),
@@ -1052,33 +1622,30 @@ app.post("/api/admin/batch-reanalyze", async (req, res) => {
 });
 
 // API: Get Synchronized Exam Submissions (For Admin Dashboard)
-app.get("/api/attempts", async (req, res) => {
+app.get("/api/attempts", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can view evaluation and proctoring processes." });
   }
-  const attempts = await ExamAttempt.find().lean();
-  res.json(attempts);
+  res.json(synchronizedAttempts);
 });
 
 // API: Get Sent Email Alerts (For Admin Dashboard Auditing)
-app.get("/api/admin/emails", async (req, res) => {
+app.get("/api/admin/emails", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can view email dispatch logs." });
   }
-  const emails = await SentEmail.find().lean();
-  res.json(emails);
+  res.json(sentEmails);
 });
 
 // API: Get Registered Candidates (For Admin Dashboard analytics)
-app.get("/api/admin/candidates", async (req, res) => {
+app.get("/api/admin/candidates", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can view candidate records." });
   }
-  const candidates = await CandidateUser.find().lean();
-  res.json(candidates.map(c => ({
+  res.json(registeredCandidates.map(c => ({
     username: c.username,
     email: c.email,
     createdAt: c.createdAt
@@ -1095,7 +1662,7 @@ const getLocalDateString = (timestamp: number) => {
 };
 
 // API: Get Candidates attending on a specific date and their status
-app.get("/api/admin/candidates-by-date", async (req, res) => {
+app.get("/api/admin/candidates-by-date", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can query candidates by attendance date." });
@@ -1106,12 +1673,13 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid 'date' query parameter. Expected YYYY-MM-DD." });
   }
 
-  const allAttempts = await ExamAttempt.find().lean();
-  const dateAttempts = allAttempts.filter(a => getLocalDateString(a.startTime) === date);
+  // Find all attempts on this specific date
+  const dateAttempts = synchronizedAttempts.filter(a => getLocalDateString(a.startTime) === date);
   const candidateEmails = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
 
-  const candidatesData = await Promise.all(candidateEmails.map(async email => {
-    const user = await CandidateUser.findOne({ email: new RegExp(`^${email}$`, 'i') });
+  const candidatesData = candidateEmails.map(email => {
+    // Find candidate user
+    const user = registeredCandidates.find(c => c.email.toLowerCase() === email);
     const studentAttempts = dateAttempts.filter(a => a.studentEmail.toLowerCase() === email);
     const allFinished = studentAttempts.every(a => a.status === 'completed' || a.status === 'interrupted');
 
@@ -1127,7 +1695,7 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
         score: a.score
       }))
     };
-  }));
+  });
 
   const allFinishedGlobal = candidatesData.every(c => c.allFinished);
 
@@ -1140,7 +1708,7 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
 });
 
 // API: Bulk remove candidates who attended on a specific date
-app.post("/api/admin/candidates-by-date/remove", async (req, res) => {
+app.post("/api/admin/candidates-by-date/remove", (req, res) => {
   const userRole = req.headers["x-user-role"];
   if (userRole !== "admin") {
     return res.status(403).json({ error: "Access Denied: Only administrators can remove candidates." });
@@ -1151,12 +1719,13 @@ app.post("/api/admin/candidates-by-date/remove", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid 'date' body parameter. Expected YYYY-MM-DD." });
   }
 
-  const allAttempts = await ExamAttempt.find().lean();
-  const dateAttempts = allAttempts.filter(a => getLocalDateString(a.startTime) === date);
+  // Find attempts starting on that date
+  const dateAttempts = synchronizedAttempts.filter(a => getLocalDateString(a.startTime) === date);
   if (dateAttempts.length === 0) {
     return res.status(404).json({ error: `No attendance records or exam attempts found on ${date}.` });
   }
 
+  // Check if any attempts are not finished
   const activeAttempts = dateAttempts.filter(a => a.status === 'started' || a.status === 'paused');
   if (activeAttempts.length > 0 && !force) {
     return res.status(400).json({
@@ -1166,33 +1735,38 @@ app.post("/api/admin/candidates-by-date/remove", async (req, res) => {
   }
 
   const candidateEmailsToRemove = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
-  const dateAttemptIds = dateAttempts.map(a => a.id);
 
-  // Remove candidates
-  const candidateResult = await CandidateUser.deleteMany({ email: { $in: candidateEmailsToRemove } });
-  
-  // Remove attempts
-  const attemptResult = await ExamAttempt.deleteMany({ id: { $in: dateAttemptIds } });
+  // Remove candidates from registeredCandidates
+  const initialCandidatesCount = registeredCandidates.length;
+  registeredCandidates = registeredCandidates.filter(c => !candidateEmailsToRemove.includes(c.email.toLowerCase()));
+  const removedCandidatesCount = initialCandidatesCount - registeredCandidates.length;
+
+  // Remove corresponding attempts on that specific date
+  const initialAttemptsCount = synchronizedAttempts.length;
+  synchronizedAttempts = synchronizedAttempts.filter(a => !(getLocalDateString(a.startTime) === date && candidateEmailsToRemove.includes(a.studentEmail.toLowerCase())));
+  const removedAttemptsCount = initialAttemptsCount - synchronizedAttempts.length;
+
+  // Persist files
+  saveCandidates();
+  saveAttempts();
 
   res.json({
     success: true,
-    message: `Successfully removed ${candidateResult.deletedCount} candidate(s) who attended on ${date} and pruned ${attemptResult.deletedCount} corresponding exam attempt(s).`,
-    removedCandidatesCount: candidateResult.deletedCount,
-    removedAttemptsCount: attemptResult.deletedCount
+    message: `Successfully removed ${removedCandidatesCount} candidate(s) who attended on ${date} and pruned ${removedAttemptsCount} corresponding exam attempt(s).`,
+    removedCandidatesCount,
+    removedAttemptsCount
   });
 });
 
 // API: Get Completed Exam IDs and Attempt Details for a Specific Student (Public / Safe)
-app.get("/api/attempts/completed", async (req, res) => {
+app.get("/api/attempts/completed", (req, res) => {
   const { email } = req.query;
   if (!email || typeof email !== "string") {
     return res.status(400).json({ error: "Missing or invalid student email query parameter." });
   }
 
-  const studentAttempts = await ExamAttempt.find({
-    studentEmail: new RegExp(`^${email.trim()}$`, 'i'),
-    status: "completed"
-  }).lean();
+  const studentAttempts = synchronizedAttempts
+    .filter(a => a.studentEmail.toLowerCase() === email.trim().toLowerCase() && a.status === "completed");
 
   const completedIds = studentAttempts.map(a => a.examId);
 
