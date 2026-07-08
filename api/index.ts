@@ -467,8 +467,9 @@ const serverExams: Exam[] = [
 ];
 
 // Submissions store
-const ATTEMPTS_FILE = path.join(process.cwd(), "synchronized_attempts.json");
-const CANDIDATES_FILE = path.join(process.cwd(), "registered_candidates.json");
+const DATA_DIR = process.env.VERCEL ? "/tmp" : process.cwd();
+const ATTEMPTS_FILE = path.join(DATA_DIR, "synchronized_attempts.json");
+const CANDIDATES_FILE = path.join(DATA_DIR, "registered_candidates.json");
 
 // Relational User & Notification Models for authentication and auditing
 interface CandidateUser {
@@ -510,7 +511,7 @@ function saveAttempts() {
   }
 }
 
-const EMAILS_FILE = path.join(process.cwd(), "sent_emails.json");
+const EMAILS_FILE = path.join(DATA_DIR, "sent_emails.json");
 
 interface SentEmail {
   id: string;
@@ -573,7 +574,7 @@ function saveCandidates() {
 }
 
 // Portal Settings Store
-const SETTINGS_FILE = path.join(process.cwd(), "portal_settings.json");
+const SETTINGS_FILE = path.join(DATA_DIR, "portal_settings.json");
 interface PortalSettings {
   candidatePortalEnabled: boolean;
 }
