@@ -231,6 +231,7 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPasskey, setLoginPasskey] = useState("exam-consolidation-passphrase-2026");
   const [adminPassword, setAdminPassword] = useState("");
+  const [adminLoginMethod, setAdminLoginMethod] = useState<'online' | 'offline'>('online');
 
   // Expanded registration / authentication states
   const [candidatePassword, setCandidatePassword] = useState("");
@@ -702,7 +703,22 @@ export default function App() {
     }
   };
 
-  const performAdminLoginDirect = async (userVal: string, passVal: string): Promise<boolean> => {
+  const performAdminLoginDirect = async (userVal: string, passVal: string, method: 'online' | 'offline' = 'online'): Promise<boolean> => {
+    if (method === 'offline') {
+      const cleanPw = passVal.trim();
+      if (cleanPw === "admin" || cleanPw === "admin2026") {
+        const user = { role: 'admin' as const, name: "Proctor Administrator (Offline)" };
+        localStorage.setItem("guardian_quiz_user", JSON.stringify(user));
+        setCurrentUser(user);
+        setCurrentTab('admin');
+        showCustomAlert("Offline Admin Access", "Dashboard loaded using local sandbox fallback keys.");
+        return true;
+      } else {
+        showCustomAlert("Access Denied", "Incorrect offline password.");
+        return false;
+      }
+    }
+
     try {
       const res = await fetch("/api/auth/admin/login", {
         method: "POST",
@@ -727,19 +743,9 @@ export default function App() {
         return false;
       }
     } catch (err) {
-      console.warn("Proctor server offline. Running local sandbox fallback:", err);
-      const cleanPw = passVal.trim();
-      if (cleanPw === "admin" || cleanPw === "admin2026") {
-        const user = { role: 'admin' as const, name: "Proctor Administrator (Offline)" };
-        localStorage.setItem("guardian_quiz_user", JSON.stringify(user));
-        setCurrentUser(user);
-        setCurrentTab('admin');
-        showCustomAlert("Offline Admin Access", "Dashboard loaded using local sandbox fallback keys.");
-        return true;
-      } else {
-        showCustomAlert("Access Denied", "Incorrect password.");
-        return false;
-      }
+      console.warn("Proctor server offline. Network error:", err);
+      showCustomAlert("Network Error", "Could not connect to the authentication server. Please check your internet connection or switch to Offline Mode.");
+      return false;
     }
   };
 
@@ -754,7 +760,7 @@ export default function App() {
       return;
     }
 
-    await performAdminLoginDirect(adminUsername, adminPassword);
+    await performAdminLoginDirect(adminUsername, adminPassword, adminLoginMethod);
   };
 
   const handleUpdateAdminCredentials = async (e: React.FormEvent) => {
@@ -3544,6 +3550,26 @@ export default function App() {
                   </div>
 
                   <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Login Method</label>
+                    <div className="flex bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setAdminLoginMethod('online')}
+                        className={`flex-1 py-2 text-xs font-semibold transition-all ${adminLoginMethod === 'online' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+                      >
+                        🌐 Online
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdminLoginMethod('offline')}
+                        className={`flex-1 py-2 text-xs font-semibold transition-all ${adminLoginMethod === 'offline' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+                      >
+                        🔌 Offline
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Security Password</label>
                     <div className="relative">
                       <input
@@ -3591,7 +3617,7 @@ export default function App() {
                     className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5"
                   >
                     <BrainCircuit className="w-4 h-4" />
-                    Verify & Unlock Dashboard
+                    {adminLoginMethod === 'online' ? "Verify Online" : "Verify Offline"}
                   </button>
                 </div>
 
