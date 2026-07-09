@@ -551,6 +551,8 @@ app.post("/api/exams/:id/start-all", async (req, res) => {
   let createdCount = 0;
   let updatedCount = 0;
 
+  const newExamsToInsert = [];
+
   for (const candidate of candidates) {
     const cleanEmail = candidate.email.trim().toLowerCase();
 
@@ -570,18 +572,23 @@ app.post("/api/exams/:id/start-all", async (req, res) => {
       updatedCount++;
     } else {
       // Clone the exam for the candidate
-      await Exam.create({
+      const cloned = {
         ...baseExam.toObject(),
-        _id: undefined,
         id: "exam-" + Math.random().toString(36).substr(2, 9),
         assignedCandidateEmail: cleanEmail,
         isUnlocked: true,
         isStarted: true,
         parentExamId: baseExam.id,
         createdAt: Date.now()
-      });
+      };
+      delete cloned._id;
+      newExamsToInsert.push(cloned);
       createdCount++;
     }
+  }
+
+  if (newExamsToInsert.length > 0) {
+    await Exam.collection.insertMany(newExamsToInsert);
   }
 
   await AdminNotification.create({
@@ -605,9 +612,7 @@ app.post("/api/exams", async (req, res) => {
   const { title, description, timeLimit, questions, requireScreenCapture, assignedCandidateEmail, passkey } = req.body;
   if (!title || !questions || questions.length === 0) {
     return res.status(400).json({ error: "Exam must include a title and at least one question." });
-  }
-
-  const newExam = await Exam.create({
+  }  const examData = {
     id: "exam-" + Math.random().toString(36).substr(2, 9),
     title,
     description: description || "",
@@ -619,15 +624,17 @@ app.post("/api/exams", async (req, res) => {
     isUnlocked: false,
     isStarted: false,
     passkey: passkey || "UNLOCK2026",
+    questionPool: [],
     questions: questions.map((q: any, idx: number) => ({
-      id: `q-${idx}-${Math.random().toString(36).substr(2, 5)}`,
+      id: q.id || `q-${idx}-${Math.random().toString(36).substr(2, 5)}`,
       text: q.text,
       options: q.options,
       correctOptionIndex: Number(q.correctOptionIndex) || 0
     }))
-  });
+  };
 
-  res.status(201).json(newExam);
+  await Exam.collection.insertOne(examData);
+  res.status(201).json(examData);
 });
 
 // API: Get Question Banks (For Admins)
@@ -652,7 +659,7 @@ app.post("/api/question-banks", async (req, res) => {
     return res.status(400).json({ error: "Name, subject, and an array of questions are required." });
   }
 
-  const newBank = await QuestionBank.create({
+  const bankData = {
     id: "bank-" + Math.random().toString(36).substr(2, 9),
     name,
     subject,
@@ -667,7 +674,9 @@ app.post("/api/question-banks", async (req, res) => {
       subject,
       topic: topic || ""
     }))
-  });
+  };
+
+  await QuestionBank.collection.insertOne(bankData);
 
   await AdminNotification.create({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
@@ -676,7 +685,7 @@ app.post("/api/question-banks", async (req, res) => {
     read: false
   });
 
-  res.status(201).json(newBank);
+  res.status(201).json(bankData);
 });
 
 // API: Create Adaptive Quiz (For Admins)
@@ -696,7 +705,7 @@ app.post("/api/exams/adaptive", async (req, res) => {
     return res.status(404).json({ error: "Selected Question Bank not found." });
   }
 
-  const newExam = await Exam.create({
+  const examData = {
     id: "exam-" + Math.random().toString(36).substr(2, 9),
     title,
     description: description || "",
@@ -713,7 +722,9 @@ app.post("/api/exams/adaptive", async (req, res) => {
     isUnlocked: false,
     isStarted: false,
     passkey: passkey || "UNLOCK2026"
-  });
+  };
+
+  await Exam.collection.insertOne(examData);
 
   await AdminNotification.create({
     id: "notif-" + Math.random().toString(36).substr(2, 9),
@@ -722,7 +733,7 @@ app.post("/api/exams/adaptive", async (req, res) => {
     read: false
   });
 
-  res.status(201).json(newExam);
+  res.status(201).json(examData);
 });
 
 // Helper: Process single candidate attempt with server-side grading and AI integrity evaluation
