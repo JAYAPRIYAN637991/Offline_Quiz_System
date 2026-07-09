@@ -1675,7 +1675,7 @@ app.get("/api/admin/candidates-by-date", (req, res) => {
 
   // Find all attempts on this specific date
   const dateAttempts = synchronizedAttempts.filter(a => getLocalDateString(a.startTime) === date);
-  const candidateEmails = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
+  const candidateEmails = Array.from(new Set(dateAttempts.filter(a => a.studentEmail).map(a => a.studentEmail.toLowerCase())));
 
   const candidatesData = candidateEmails.map(email => {
     // Find candidate user
@@ -1734,7 +1734,7 @@ app.post("/api/admin/candidates-by-date/remove", (req, res) => {
     });
   }
 
-  const candidateEmailsToRemove = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
+  const candidateEmailsToRemove = Array.from(new Set(dateAttempts.filter(a => a.studentEmail).map(a => a.studentEmail.toLowerCase())));
 
   // Remove candidates from registeredCandidates
   const initialCandidatesCount = registeredCandidates.length;

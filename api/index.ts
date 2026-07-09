@@ -1108,7 +1108,7 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
 
   const allAttempts = await ExamAttempt.find().lean();
   const dateAttempts = allAttempts.filter(a => getLocalDateString(a.startTime) === date);
-  const candidateEmails = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
+  const candidateEmails = Array.from(new Set(dateAttempts.filter(a => a.studentEmail).map(a => a.studentEmail.toLowerCase())));
 
   const candidatesData = await Promise.all(candidateEmails.map(async email => {
     const user = await CandidateUser.findOne({ email: new RegExp(`^${email}$`, 'i') });
@@ -1165,7 +1165,7 @@ app.post("/api/admin/candidates-by-date/remove", async (req, res) => {
     });
   }
 
-  const candidateEmailsToRemove = Array.from(new Set(dateAttempts.map(a => a.studentEmail.toLowerCase())));
+  const candidateEmailsToRemove = Array.from(new Set(dateAttempts.filter(a => a.studentEmail).map(a => a.studentEmail.toLowerCase())));
   const dateAttemptIds = dateAttempts.map(a => a.id);
 
   // Remove candidates
