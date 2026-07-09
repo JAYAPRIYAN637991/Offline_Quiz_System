@@ -545,7 +545,7 @@ app.post("/api/exams/:id/start-all", async (req, res) => {
 
   const candidates = await CandidateUser.find().lean();
   if (candidates.length === 0) {
-    return res.status(400).json({ error: "No candidates are registered in the portal yet." });
+    return res.json({ success: true, message: "Exam template unlocked and started. No candidates are registered yet.", totalCandidates: 0, clonedExamsCreated: 0, existingExamsUpdated: 0 });
   }
 
   let createdCount = 0;
