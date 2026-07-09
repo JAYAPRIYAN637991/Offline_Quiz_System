@@ -1117,12 +1117,17 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid 'date' query parameter. Expected YYYY-MM-DD." });
   }
 
-  const allAttempts = await ExamAttempt.find().lean();
-  const dateAttempts = allAttempts.filter(a => getLocalDateString(a.startTime) === date);
+  const [y, m, d] = date.split('-');
+  const startOfDay = new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+  const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+
+  const dateAttempts = await ExamAttempt.find({ startTime: { $gte: startOfDay, $lt: endOfDay } }).lean();
   const candidateEmails = Array.from(new Set(dateAttempts.filter(a => a.studentEmail).map(a => a.studentEmail.toLowerCase())));
 
-  const candidatesData = await Promise.all(candidateEmails.map(async email => {
-    const user = await CandidateUser.findOne({ email: new RegExp(`^${email}$`, 'i') });
+  const users = await CandidateUser.find({ email: { $in: candidateEmails.map(email => new RegExp(`^${email}$`, 'i')) } }).lean();
+
+  const candidatesData = candidateEmails.map(email => {
+    const user = users.find(u => u.email.toLowerCase() === email);
     const studentAttempts = dateAttempts.filter(a => a.studentEmail.toLowerCase() === email);
     const allFinished = studentAttempts.every(a => a.status === 'completed' || a.status === 'interrupted');
 
@@ -1138,7 +1143,7 @@ app.get("/api/admin/candidates-by-date", async (req, res) => {
         score: a.score
       }))
     };
-  }));
+  });
 
   const allFinishedGlobal = candidatesData.every(c => c.allFinished);
 
@@ -1162,8 +1167,11 @@ app.post("/api/admin/candidates-by-date/remove", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid 'date' body parameter. Expected YYYY-MM-DD." });
   }
 
-  const allAttempts = await ExamAttempt.find().lean();
-  const dateAttempts = allAttempts.filter(a => getLocalDateString(a.startTime) === date);
+  const [y, m, d] = date.split('-');
+  const startOfDay = new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+  const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+
+  const dateAttempts = await ExamAttempt.find({ startTime: { $gte: startOfDay, $lt: endOfDay } }).lean();
   if (dateAttempts.length === 0) {
     return res.status(404).json({ error: `No attendance records or exam attempts found on ${date}.` });
   }
